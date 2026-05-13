@@ -1,5 +1,5 @@
 (function () {
-  var assetVersion = "20260514-card-grid-v3";
+  var assetVersion = "20260514-card-grid-v4";
   var backgroundCandidates = [
     "/static/backgrounds/panel-scene.avif?v=" + assetVersion,
     "/static/backgrounds/panel-scene.webp?v=" + assetVersion,
@@ -32,6 +32,7 @@
 
   function ensureSceneLayers() {
     var root = document.getElementById("panel-scene-root");
+    var particlesRoot = document.getElementById("panel-particles-root");
     if (!root) {
       root = document.createElement("div");
       root.id = "panel-scene-root";
@@ -40,23 +41,32 @@
       var background = document.createElement("div");
       background.className = "panel-background";
 
-      var particles = document.createElement("div");
-      particles.id = "particles-js";
-      particles.className = "panel-particles";
-
       var overlay = document.createElement("div");
       overlay.className = "panel-background-overlay";
 
       root.appendChild(background);
-      root.appendChild(particles);
       root.appendChild(overlay);
       document.body.insertBefore(root, document.body.firstChild);
     }
 
+    if (!particlesRoot) {
+      particlesRoot = document.createElement("div");
+      particlesRoot.id = "panel-particles-root";
+      particlesRoot.setAttribute("aria-hidden", "true");
+
+      var particles = document.createElement("div");
+      particles.id = "particles-js";
+      particles.className = "panel-particles";
+
+      particlesRoot.appendChild(particles);
+      document.body.appendChild(particlesRoot);
+    }
+
     return {
       root: root,
+      particlesRoot: particlesRoot,
       background: root.querySelector(".panel-background"),
-      particles: root.querySelector("#particles-js"),
+      particles: particlesRoot.querySelector("#particles-js"),
       overlay: root.querySelector(".panel-background-overlay")
     };
   }
@@ -64,6 +74,7 @@
   function applyCriticalLayerStyles() {
     var scene = ensureSceneLayers();
     var root = scene.root;
+    var particlesRoot = scene.particlesRoot;
     var background = scene.background;
     var particles = scene.particles;
     var overlay = scene.overlay;
@@ -77,6 +88,17 @@
       root.style.zIndex = "0";
       root.style.overflow = "hidden";
       root.style.pointerEvents = "none";
+    }
+
+    if (particlesRoot) {
+      particlesRoot.style.position = "fixed";
+      particlesRoot.style.top = "0";
+      particlesRoot.style.right = "0";
+      particlesRoot.style.bottom = "0";
+      particlesRoot.style.left = "0";
+      particlesRoot.style.zIndex = "4";
+      particlesRoot.style.overflow = "hidden";
+      particlesRoot.style.pointerEvents = "none";
     }
 
     if (background) {
@@ -98,9 +120,10 @@
       particles.style.right = "0";
       particles.style.bottom = "0";
       particles.style.left = "0";
-      particles.style.zIndex = "1";
+      particles.style.zIndex = "0";
       particles.style.width = "100vw";
       particles.style.height = "100vh";
+      particles.style.opacity = "0.72";
       particles.style.pointerEvents = "none";
     }
 
@@ -110,7 +133,7 @@
       overlay.style.right = "0";
       overlay.style.bottom = "0";
       overlay.style.left = "0";
-      overlay.style.zIndex = "2";
+      overlay.style.zIndex = "1";
       overlay.style.pointerEvents = "none";
     }
   }
@@ -247,7 +270,11 @@
       return;
     }
 
-    window.particlesJS("particles-js", buildParticlesConfig(false));
+    var config = buildParticlesConfig(false);
+    config.particles.opacity.value = 0.28;
+    config.particles.line_linked.opacity = 0.16;
+    config.particles.move.speed = 1.8;
+    window.particlesJS("particles-js", config);
   }
 
   onReady(function () {

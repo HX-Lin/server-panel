@@ -75,7 +75,6 @@ body {
 }
 
 .panel-background,
-.panel-particles,
 .panel-background-overlay {
   position: absolute;
   top: 0;
@@ -99,14 +98,18 @@ body {
   transform-origin: center;
 }
 
-.panel-particles {
-  z-index: 1;
-  opacity: 0.82;
+#panel-particles-root {
+  position: fixed;
+  inset: 0;
+  z-index: 4;
+  pointer-events: none;
 }
 
-.panel-particles,
-[data-particles-interactive="false"] .panel-particles {
-  pointer-events: none;
+.panel-particles {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  opacity: 0.72;
 }
 
 .panel-particles canvas {
@@ -115,10 +118,11 @@ body {
   display: block;
   width: 100%;
   height: 100%;
+  opacity: 0.7;
 }
 
 .panel-background-overlay {
-  z-index: 2;
+  z-index: 1;
   background:
     radial-gradient(circle at center, transparent 12%, var(--panel-vignette) 100%),
     linear-gradient(180deg, var(--panel-overlay-top), var(--panel-overlay-bottom));
@@ -431,14 +435,14 @@ body {
 
 .server-card-grid {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 1rem;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 0.8rem;
 }
 
 .server-monitor-card,
 .server-card-empty {
   border: 1px solid var(--panel-border);
-  border-radius: 0.5rem;
+  border-radius: 0.4rem;
   background: linear-gradient(180deg, rgba(255, 255, 255, 0.82), rgba(248, 250, 253, 0.78));
   box-shadow: var(--panel-shadow-soft), var(--panel-inset);
   backdrop-filter: blur(12px);
@@ -453,34 +457,44 @@ body {
 .server-monitor-card {
   display: flex;
   flex-direction: column;
-  gap: 1rem;
-  padding: 1rem;
+  gap: 0.8rem;
+  padding: 0.82rem 0.82rem 0.78rem;
 }
 
 .server-monitor-card-header {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
-  gap: 0.85rem;
+  gap: 0.7rem;
 }
 
 .server-monitor-card-title {
   min-width: 0;
 }
 
+.server-monitor-card .server-name {
+  font-size: 0.98rem;
+  line-height: 1.25;
+}
+
+.server-monitor-card .server-tags {
+  gap: 0.28rem;
+  margin-top: 0.32rem;
+}
+
 .server-monitor-card-metrics {
   display: grid;
-  gap: 0.9rem;
+  gap: 0.7rem;
 }
 
 .server-monitor-metric {
   display: grid;
-  gap: 0.4rem;
+  gap: 0.3rem;
 }
 
 .server-monitor-metric-label {
   color: var(--panel-muted);
-  font-size: 0.76rem;
+  font-size: 0.72rem;
   line-height: 1.2;
   text-transform: uppercase;
   letter-spacing: 0.045em;
@@ -488,40 +502,44 @@ body {
 
 .server-monitor-card-meta {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 0.75rem;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.55rem 0.7rem;
 }
 
 .server-monitor-card-meta div {
   display: grid;
-  gap: 0.25rem;
+  gap: 0.18rem;
 }
 
 .server-monitor-card-meta span {
   color: var(--panel-muted);
-  font-size: 0.76rem;
+  font-size: 0.7rem;
   text-transform: uppercase;
   letter-spacing: 0.04em;
 }
 
 .server-monitor-card-meta strong {
-  font-size: 0.92rem;
+  font-size: 0.84rem;
+  line-height: 1.25;
   word-break: break-word;
 }
 
 .server-card-toggle {
   align-self: flex-start;
+  padding: 0.26rem 0.58rem;
+  border-radius: 0.38rem;
+  font-size: 0.78rem;
 }
 
 .server-card-detail {
-  padding-top: 1rem;
+  padding-top: 0.8rem;
   border-top: 1px solid var(--panel-border);
 }
 
 .server-card-empty {
   display: grid;
   place-items: center;
-  min-height: 280px;
+  min-height: 220px;
   gap: 0.75rem;
   color: var(--panel-muted);
   font-weight: 600;
@@ -952,7 +970,7 @@ body {
 
 @media (min-width: 1400px) {
   .server-card-grid {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
   }
 }
 
