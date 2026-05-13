@@ -1,5 +1,5 @@
 (function () {
-  var assetVersion = "20260514-scene-fix";
+  var assetVersion = "20260514-card-grid-v3";
   var backgroundCandidates = [
     "/static/backgrounds/panel-scene.avif?v=" + assetVersion,
     "/static/backgrounds/panel-scene.webp?v=" + assetVersion,
@@ -30,16 +30,61 @@
     });
   }
 
+  function ensureSceneLayers() {
+    var root = document.getElementById("panel-scene-root");
+    if (!root) {
+      root = document.createElement("div");
+      root.id = "panel-scene-root";
+      root.setAttribute("aria-hidden", "true");
+
+      var background = document.createElement("div");
+      background.className = "panel-background";
+
+      var particles = document.createElement("div");
+      particles.id = "particles-js";
+      particles.className = "panel-particles";
+
+      var overlay = document.createElement("div");
+      overlay.className = "panel-background-overlay";
+
+      root.appendChild(background);
+      root.appendChild(particles);
+      root.appendChild(overlay);
+      document.body.insertBefore(root, document.body.firstChild);
+    }
+
+    return {
+      root: root,
+      background: root.querySelector(".panel-background"),
+      particles: root.querySelector("#particles-js"),
+      overlay: root.querySelector(".panel-background-overlay")
+    };
+  }
+
   function applyCriticalLayerStyles() {
-    var background = document.querySelector(".panel-background");
-    var particles = document.getElementById("particles-js");
-    var overlay = document.querySelector(".panel-background-overlay");
-    var interactive = document.body.dataset.particlesInteractive !== "false";
+    var scene = ensureSceneLayers();
+    var root = scene.root;
+    var background = scene.background;
+    var particles = scene.particles;
+    var overlay = scene.overlay;
+
+    if (root) {
+      root.style.position = "fixed";
+      root.style.top = "0";
+      root.style.right = "0";
+      root.style.bottom = "0";
+      root.style.left = "0";
+      root.style.zIndex = "0";
+      root.style.overflow = "hidden";
+      root.style.pointerEvents = "none";
+    }
 
     if (background) {
-      background.style.position = "fixed";
-      background.style.inset = "0";
-      background.style.zIndex = "0";
+      background.style.position = "absolute";
+      background.style.top = "0";
+      background.style.right = "0";
+      background.style.bottom = "0";
+      background.style.left = "0";
       background.style.pointerEvents = "none";
       background.style.backgroundColor = "var(--panel-bg)";
       background.style.backgroundSize = "cover";
@@ -48,24 +93,30 @@
     }
 
     if (particles) {
-      particles.style.position = "fixed";
-      particles.style.inset = "0";
+      particles.style.position = "absolute";
+      particles.style.top = "0";
+      particles.style.right = "0";
+      particles.style.bottom = "0";
+      particles.style.left = "0";
       particles.style.zIndex = "1";
       particles.style.width = "100vw";
       particles.style.height = "100vh";
-      particles.style.pointerEvents = interactive ? "auto" : "none";
+      particles.style.pointerEvents = "none";
     }
 
     if (overlay) {
-      overlay.style.position = "fixed";
-      overlay.style.inset = "0";
+      overlay.style.position = "absolute";
+      overlay.style.top = "0";
+      overlay.style.right = "0";
+      overlay.style.bottom = "0";
+      overlay.style.left = "0";
       overlay.style.zIndex = "2";
       overlay.style.pointerEvents = "none";
     }
   }
 
   async function applyBackgroundImage() {
-    var background = document.querySelector(".panel-background");
+    var background = ensureSceneLayers().background;
     for (var i = 0; i < backgroundCandidates.length; i += 1) {
       var url = await probeImage(backgroundCandidates[i]);
       if (url) {
@@ -191,13 +242,12 @@
   }
 
   function initParticles() {
-    var container = document.getElementById("particles-js");
+    var container = ensureSceneLayers().particles;
     if (!container || typeof window.particlesJS !== "function") {
       return;
     }
 
-    var interactive = document.body.dataset.particlesInteractive !== "false";
-    window.particlesJS("particles-js", buildParticlesConfig(interactive));
+    window.particlesJS("particles-js", buildParticlesConfig(false));
   }
 
   onReady(function () {

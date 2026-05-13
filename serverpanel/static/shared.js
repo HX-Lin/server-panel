@@ -308,6 +308,74 @@
       '<div class="gpu-grid">' + renderGpuCards(metrics.gpus || []) + '</div>';
   }
 
+  function buildServerCards(servers, options) {
+    var publicView = Boolean((options || {}).publicView);
+    var prefix = (options && options.prefix) || "server";
+
+    if (!Array.isArray(servers) || servers.length === 0) {
+      return '' +
+        '<div class="server-card-empty">' +
+        '  <i class="bi bi-hdd-network"></i>' +
+        '  <div>暂无服务器数据</div>' +
+        '</div>';
+    }
+
+    return servers.map(function (server, index) {
+      var detailId = prefix + "-card-detail-" + index;
+      var metrics = server.metrics || {};
+      var cpu = metrics.cpu || {};
+      var memory = metrics.memory || {};
+      var gpus = Array.isArray(metrics.gpus) ? metrics.gpus : [];
+      var gpuUtil = averageGpuUtil(server);
+      var gpuMem = averageGpuMemory(server);
+      var tags = Array.isArray(server.tags) && server.tags.length
+        ? '<div class="server-tags">' + server.tags.map(function (tag) {
+            return '<span class="tag-chip">' + escapeHtml(tag) + '</span>';
+          }).join("") + '</div>'
+        : "";
+
+      var gpuSummary = gpus.length
+        ? gpus.length + " 张 GPU" + (gpuMem == null ? "" : " · 显存 " + formatPercent(gpuMem))
+        : "未检测到 GPU";
+
+      return '' +
+        '<article class="server-monitor-card">' +
+        '  <div class="server-monitor-card-header">' +
+        '    <div class="server-monitor-card-title">' +
+        '      <div class="server-name">' + escapeHtml(server.name || "未命名节点") + '</div>' +
+               tags +
+        '    </div>' +
+        '    ' + statusBadge(server) +
+        '  </div>' +
+        '  <div class="server-monitor-card-metrics">' +
+        '    <div class="server-monitor-metric">' +
+        '      <span class="server-monitor-metric-label">CPU</span>' +
+               renderMetricBar(cpu.usage_percent, "Load " + ([cpu.load1, cpu.load5, cpu.load15].filter(function (value) { return typeof value === "number"; }).map(function (value) { return value.toFixed(2); }).join(" / ") || "-")) +
+        '    </div>' +
+        '    <div class="server-monitor-metric">' +
+        '      <span class="server-monitor-metric-label">内存</span>' +
+               renderMetricBar(memory.usage_percent, formatBytes(memory.used_bytes) + " / " + formatBytes(memory.total_bytes)) +
+        '    </div>' +
+        '    <div class="server-monitor-metric">' +
+        '      <span class="server-monitor-metric-label">GPU</span>' +
+               renderMetricBar(gpuUtil, gpuSummary) +
+        '    </div>' +
+        '  </div>' +
+        '  <div class="server-monitor-card-meta">' +
+        '    <div><span>运行时长</span><strong>' + escapeHtml(formatDuration(metrics.uptime_seconds)) + '</strong></div>' +
+        '    <div><span>最后更新</span><strong>' + escapeHtml(formatDateTime(server.last_report_at)) + '</strong></div>' +
+             (publicView
+               ? '<div><span>上报年龄</span><strong>' + escapeHtml(formatRelativeSeconds(server.report_age_seconds)) + '</strong></div>'
+               : '<div><span>节点地址</span><strong>' + escapeHtml(server.display_host || server.host || "-") + '</strong></div>') +
+        '  </div>' +
+        '  <button type="button" class="btn btn-outline-secondary btn-sm server-card-toggle" data-detail-target="' + detailId + '" aria-expanded="false">' +
+        '    <i class="bi bi-chevron-down"></i><span class="toggle-label ms-2">查看详情</span>' +
+        '  </button>' +
+        '  <div id="' + detailId + '" class="server-card-detail d-none">' + renderServerDetailContent(server, { publicView: publicView }) + '</div>' +
+        '</article>';
+    }).join("");
+  }
+
   function buildServerRows(servers, options) {
     var publicView = Boolean((options || {}).publicView);
     var prefix = (options && options.prefix) || "server";
@@ -348,19 +416,32 @@
 
   function bindExpandableRows(rootElement) {
     var root = rootElement || document;
-    root.querySelectorAll(".server-row-clickable").forEach(function (row) {
-      if (row.dataset.bound === "true") {
+    root.querySelectorAll("[data-detail-target]").forEach(function (trigger) {
+      if (trigger.dataset.bound === "true") {
         return;
       }
-      row.dataset.bound = "true";
-      row.addEventListener("click", function () {
-        var detailId = row.getAttribute("data-detail-target");
+      trigger.dataset.bound = "true";
+      trigger.addEventListener("click", function () {
+        var detailId = trigger.getAttribute("data-detail-target");
         if (!detailId) {
           return;
         }
-        var detailRow = document.getElementById(detailId);
-        if (detailRow) {
-          detailRow.classList.toggle("d-none");
+        var detailNode = document.getElementById(detailId);
+        if (detailNode) {
+          detailNode.classList.toggle("d-none");
+          var expanded = !detailNode.classList.contains("d-none");
+          trigger.setAttribute("aria-expanded", expanded ? "true" : "false");
+
+          if (trigger.classList.contains("server-card-toggle")) {
+            var icon = trigger.querySelector("i");
+            var label = trigger.querySelector(".toggle-label");
+            if (icon) {
+              icon.className = expanded ? "bi bi-chevron-up" : "bi bi-chevron-down";
+            }
+            if (label) {
+              label.textContent = expanded ? "收起详情" : "查看详情";
+            }
+          }
         }
       });
     });
@@ -431,6 +512,7 @@
     formatRelativeSeconds: formatRelativeSeconds,
     averageGpuUtil: averageGpuUtil,
     averageGpuMemory: averageGpuMemory,
+    buildServerCards: buildServerCards,
     buildServerRows: buildServerRows,
     bindExpandableRows: bindExpandableRows,
     renderMobileCards: renderMobileCards,

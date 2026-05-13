@@ -106,7 +106,7 @@ function renderSettingsMeta(settings, payload) {
 
 function renderAdminServers(payload) {
   const servers = Array.isArray(payload.servers) ? payload.servers : [];
-  document.getElementById("serverTableBody").innerHTML = ServerPanelShared.buildServerRows(servers, {
+  document.getElementById("serverCardGrid").innerHTML = ServerPanelShared.buildServerCards(servers, {
     publicView: false,
     prefix: "admin",
   });

@@ -118,7 +118,7 @@ function renderHomeMonitor(payload, settings) {
     notice.textContent = "";
   }
 
-  document.getElementById("serverTableBody").innerHTML = ServerPanelShared.buildServerRows(servers, {
+  document.getElementById("serverCardGrid").innerHTML = ServerPanelShared.buildServerCards(servers, {
     publicView: !mainState.authenticated,
     prefix: "home",
   });
