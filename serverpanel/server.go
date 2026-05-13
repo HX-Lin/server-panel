@@ -400,13 +400,13 @@ func (s *PanelState) serveStaticFile(c *gin.Context, relativePath string) {
 		return
 	}
 
-	contentType := mime.TypeByExtension(path.Ext(cleanPath))
+	contentType := staticContentType(cleanPath)
 	if contentType == "" {
 		contentType = "application/octet-stream"
 	}
 
 	c.Header("Content-Type", contentType)
-	if path.Ext(cleanPath) == ".html" {
+	if shouldDisableStaticCache(cleanPath) {
 		c.Header("Cache-Control", "no-cache")
 	} else {
 		c.Header("Cache-Control", "public, max-age=3600")
@@ -418,6 +418,25 @@ func (s *PanelState) serveStaticFile(c *gin.Context, relativePath string) {
 		return
 	}
 	c.Data(http.StatusOK, contentType, data)
+}
+
+func staticContentType(name string) string {
+	switch strings.ToLower(path.Ext(name)) {
+	case ".avif":
+		return "image/avif"
+	case ".webp":
+		return "image/webp"
+	}
+	return mime.TypeByExtension(path.Ext(name))
+}
+
+func shouldDisableStaticCache(name string) bool {
+	switch strings.ToLower(path.Ext(name)) {
+	case ".html", ".css", ".js":
+		return true
+	default:
+		return false
+	}
 }
 
 func (s *PanelState) servePage(c *gin.Context, page string) {

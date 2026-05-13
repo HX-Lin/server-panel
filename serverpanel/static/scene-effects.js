@@ -1,11 +1,12 @@
 (function () {
+  var assetVersion = "20260514-scene-fix";
   var backgroundCandidates = [
-    "/static/backgrounds/panel-scene.avif",
-    "/static/backgrounds/panel-scene.webp",
-    "/static/backgrounds/panel-scene.png",
-    "/static/backgrounds/panel-scene.jpg",
-    "/static/backgrounds/panel-scene.jpeg",
-    "/static/backgrounds/panel-scene.gif"
+    "/static/backgrounds/panel-scene.avif?v=" + assetVersion,
+    "/static/backgrounds/panel-scene.webp?v=" + assetVersion,
+    "/static/backgrounds/panel-scene.png?v=" + assetVersion,
+    "/static/backgrounds/panel-scene.jpg?v=" + assetVersion,
+    "/static/backgrounds/panel-scene.jpeg?v=" + assetVersion,
+    "/static/backgrounds/panel-scene.gif?v=" + assetVersion
   ];
 
   function onReady(callback) {
@@ -29,12 +30,50 @@
     });
   }
 
+  function applyCriticalLayerStyles() {
+    var background = document.querySelector(".panel-background");
+    var particles = document.getElementById("particles-js");
+    var overlay = document.querySelector(".panel-background-overlay");
+    var interactive = document.body.dataset.particlesInteractive !== "false";
+
+    if (background) {
+      background.style.position = "fixed";
+      background.style.inset = "0";
+      background.style.zIndex = "0";
+      background.style.pointerEvents = "none";
+      background.style.backgroundColor = "var(--panel-bg)";
+      background.style.backgroundSize = "cover";
+      background.style.backgroundPosition = "center";
+      background.style.backgroundRepeat = "no-repeat";
+    }
+
+    if (particles) {
+      particles.style.position = "fixed";
+      particles.style.inset = "0";
+      particles.style.zIndex = "1";
+      particles.style.width = "100vw";
+      particles.style.height = "100vh";
+      particles.style.pointerEvents = interactive ? "auto" : "none";
+    }
+
+    if (overlay) {
+      overlay.style.position = "fixed";
+      overlay.style.inset = "0";
+      overlay.style.zIndex = "2";
+      overlay.style.pointerEvents = "none";
+    }
+  }
+
   async function applyBackgroundImage() {
+    var background = document.querySelector(".panel-background");
     for (var i = 0; i < backgroundCandidates.length; i += 1) {
       var url = await probeImage(backgroundCandidates[i]);
       if (url) {
         document.documentElement.style.setProperty("--panel-background-url", 'url("' + url + '")');
         document.body.classList.add("panel-has-background");
+        if (background) {
+          background.style.backgroundImage = 'url("' + url + '")';
+        }
         return;
       }
     }
@@ -162,6 +201,7 @@
   }
 
   onReady(function () {
+    applyCriticalLayerStyles();
     applyBackgroundImage();
     initParticles();
   });
