@@ -1,5 +1,5 @@
 (function () {
-  var assetVersion = "20260514-card-grid-v4";
+  var assetVersion = "20260514-interact-modal-v6";
   var backgroundCandidates = [
     "/static/backgrounds/panel-scene.avif?v=" + assetVersion,
     "/static/backgrounds/panel-scene.webp?v=" + assetVersion,
@@ -223,7 +223,7 @@
         }
       },
       interactivity: {
-        detect_on: "canvas",
+        detect_on: interactive ? "window" : "canvas",
         events: {
           onhover: {
             enable: interactive,
@@ -270,7 +270,8 @@
       return;
     }
 
-    var config = buildParticlesConfig(false);
+    var interactive = document.body.dataset.particlesInteractive !== "false";
+    var config = buildParticlesConfig(interactive);
     config.particles.opacity.value = 0.28;
     config.particles.line_linked.opacity = 0.16;
     config.particles.move.speed = 1.8;

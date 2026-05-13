@@ -368,12 +368,75 @@
                ? '<div><span>上报年龄</span><strong>' + escapeHtml(formatRelativeSeconds(server.report_age_seconds)) + '</strong></div>'
                : '<div><span>节点地址</span><strong>' + escapeHtml(server.display_host || server.host || "-") + '</strong></div>') +
         '  </div>' +
-        '  <button type="button" class="btn btn-outline-secondary btn-sm server-card-toggle" data-detail-target="' + detailId + '" aria-expanded="false">' +
-        '    <i class="bi bi-chevron-down"></i><span class="toggle-label ms-2">查看详情</span>' +
+        '  <button type="button" class="btn btn-outline-secondary btn-sm server-card-toggle" data-detail-target="' + detailId + '" data-detail-title="' + escapeHtml(server.name || "未命名节点") + '" aria-expanded="false">' +
+        '    <i class="bi bi-arrows-fullscreen"></i><span class="toggle-label ms-2">查看详情</span>' +
         '  </button>' +
         '  <div id="' + detailId + '" class="server-card-detail d-none">' + renderServerDetailContent(server, { publicView: publicView }) + '</div>' +
         '</article>';
     }).join("");
+  }
+
+  var detailModalState = {
+    element: null,
+    title: null,
+    body: null,
+    instance: null,
+  };
+
+  function ensureDetailModal() {
+    if (detailModalState.element && document.body.contains(detailModalState.element)) {
+      if (!detailModalState.instance && window.bootstrap && window.bootstrap.Modal) {
+        detailModalState.instance = window.bootstrap.Modal.getOrCreateInstance(detailModalState.element);
+      }
+      return detailModalState;
+    }
+
+    var modal = document.createElement("div");
+    modal.className = "modal fade server-detail-modal";
+    modal.id = "serverDetailModal";
+    modal.tabIndex = -1;
+    modal.setAttribute("aria-hidden", "true");
+    modal.innerHTML = '' +
+      '<div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">' +
+      '  <div class="modal-content">' +
+      '    <div class="modal-header">' +
+      '      <div>' +
+      '        <div class="modal-title h5 mb-1">节点详情</div>' +
+      '        <div class="text-body-secondary small">完整资源与 GPU 信息</div>' +
+      '      </div>' +
+      '      <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>' +
+      '    </div>' +
+      '    <div class="modal-body"></div>' +
+      '  </div>' +
+      '</div>';
+
+    document.body.appendChild(modal);
+    detailModalState.element = modal;
+    detailModalState.title = modal.querySelector(".modal-title");
+    detailModalState.body = modal.querySelector(".modal-body");
+    detailModalState.instance = window.bootstrap && window.bootstrap.Modal
+      ? window.bootstrap.Modal.getOrCreateInstance(modal)
+      : null;
+
+    modal.addEventListener("hidden.bs.modal", function () {
+      if (detailModalState.body) {
+        detailModalState.body.innerHTML = "";
+      }
+    });
+
+    return detailModalState;
+  }
+
+  function showServerDetailModal(title, content) {
+    var modal = ensureDetailModal();
+    if (!modal.element || !modal.body) {
+      return;
+    }
+    modal.title.textContent = title || "节点详情";
+    modal.body.innerHTML = content || "";
+    if (modal.instance) {
+      modal.instance.show();
+    }
   }
 
   function buildServerRows(servers, options) {
@@ -427,21 +490,16 @@
           return;
         }
         var detailNode = document.getElementById(detailId);
+        if (trigger.classList.contains("server-card-toggle")) {
+          if (detailNode) {
+            showServerDetailModal(trigger.getAttribute("data-detail-title"), detailNode.innerHTML);
+          }
+          return;
+        }
         if (detailNode) {
           detailNode.classList.toggle("d-none");
           var expanded = !detailNode.classList.contains("d-none");
           trigger.setAttribute("aria-expanded", expanded ? "true" : "false");
-
-          if (trigger.classList.contains("server-card-toggle")) {
-            var icon = trigger.querySelector("i");
-            var label = trigger.querySelector(".toggle-label");
-            if (icon) {
-              icon.className = expanded ? "bi bi-chevron-up" : "bi bi-chevron-down";
-            }
-            if (label) {
-              label.textContent = expanded ? "收起详情" : "查看详情";
-            }
-          }
         }
       });
     });
