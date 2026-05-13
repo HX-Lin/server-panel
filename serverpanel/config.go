@@ -113,11 +113,11 @@ func LoadConfig(path string) (*AppConfig, error) {
 
 	cfg := &AppConfig{
 		Bind:           firstNonEmpty(asString(raw["bind"]), defaultBind),
-		Port:           defaultInt(asInt(raw["port"]), defaultPort),
-		RefreshSeconds: maxInt(5, defaultInt(asInt(raw["refresh_seconds"]), defaultRefreshSeconds)),
+		Port:           intValue(raw["port"], defaultPort),
+		RefreshSeconds: maxInt(5, intValue(raw["refresh_seconds"], defaultRefreshSeconds)),
 		AuditLog:       firstNonEmpty(asString(raw["audit_log"]), defaultAuditLog),
 		SSH: SSHConfig{
-			ConnectTimeoutSeconds: defaultInt(asInt(sshRaw["connect_timeout_seconds"]), 6),
+			ConnectTimeoutSeconds: intValue(sshRaw["connect_timeout_seconds"], 6),
 			KnownHostsMode:        firstNonEmpty(asString(sshRaw["known_hosts_mode"]), "accept-new"),
 			IdentityFile:          asString(sshRaw["identity_file"]),
 			ExtraOptions:          toStringSlice(sshRaw["extra_options"]),
@@ -126,19 +126,19 @@ func LoadConfig(path string) (*AppConfig, error) {
 			AdminPasswordEnv:  firstNonEmpty(asString(authRaw["admin_password_env"]), "SERVER_PANEL_ADMIN_PASSWORD"),
 			SessionSecretEnv:  firstNonEmpty(asString(authRaw["session_secret_env"]), "SERVER_PANEL_SESSION_SECRET"),
 			KeyUploadTokenEnv: firstNonEmpty(asString(authRaw["key_upload_token_env"]), "SERVER_PANEL_KEY_UPLOAD_TOKEN"),
-			SessionTTLSeconds: defaultInt(asInt(authRaw["session_ttl_seconds"]), 28800),
-			SecureCookies:     defaultBool(asBool(authRaw["secure_cookies"]), false),
+			SessionTTLSeconds: intValue(authRaw["session_ttl_seconds"], 28800),
+			SecureCookies:     boolValue(authRaw["secure_cookies"], false),
 		},
 		Metrics: MetricsConfig{
-			StaleSeconds: maxInt(15, defaultInt(asInt(metricsRaw["stale_seconds"]), 90)),
+			StaleSeconds: maxInt(15, intValue(metricsRaw["stale_seconds"], 90)),
 			StorePath:    firstNonEmpty(asString(metricsRaw["store_path"]), defaultMetricsStore),
 		},
 		KeyManagement: KeyManagementConfig{
-			Enabled:                    defaultBool(asBool(keyRaw["enabled"]), true),
-			DryRun:                     defaultBool(asBool(keyRaw["dry_run"]), true),
-			AllowPublicUploadWithToken: defaultBool(asBool(keyRaw["allow_public_upload_with_token"]), true),
+			Enabled:                    boolValue(keyRaw["enabled"], true),
+			DryRun:                     boolValue(keyRaw["dry_run"], true),
+			AllowPublicUploadWithToken: boolValue(keyRaw["allow_public_upload_with_token"], true),
 			AllowedKeyTypes:            toStringSlice(keyRaw["allowed_key_types"]),
-			AllowSSHRSA:                defaultBool(asBool(keyRaw["allow_ssh_rsa"]), false),
+			AllowSSHRSA:                boolValue(keyRaw["allow_ssh_rsa"], false),
 			Targets:                    parseKeyTargets(keyRaw["targets"]),
 		},
 		Servers:    parseServers(raw["servers"]),
@@ -188,9 +188,9 @@ func parseServers(value any) []ServerTarget {
 			Mode:           firstNonEmpty(asString(raw["mode"]), "komari"),
 			Host:           asString(raw["host"]),
 			User:           asString(raw["user"]),
-			Port:           defaultInt(asInt(raw["port"]), 22),
+			Port:           intValue(raw["port"], 22),
 			Tags:           toStringSlice(raw["tags"]),
-			Enabled:        defaultBool(asBool(raw["enabled"]), true),
+			Enabled:        boolValue(raw["enabled"], true),
 			KomariTokenEnv: firstNonEmpty(asString(raw["komari_token_env"]), asString(raw["agent_token_env"])),
 			KomariToken:    firstNonEmpty(asString(raw["komari_token"]), asString(raw["agent_token"])),
 		})
@@ -213,7 +213,7 @@ func parseKeyTargets(value any) []KeyTarget {
 			Mode:           firstNonEmpty(asString(raw["mode"]), "ssh"),
 			Host:           asString(raw["host"]),
 			User:           asString(raw["user"]),
-			Port:           defaultInt(asInt(raw["port"]), 22),
+			Port:           intValue(raw["port"], 22),
 			AuthorizedKeys: firstNonEmpty(asString(raw["authorized_keys"]), "~/.ssh/authorized_keys"),
 		})
 	}
@@ -277,6 +277,14 @@ func asBool(value any) (bool, bool) {
 		return typed, true
 	}
 	return false, false
+}
+
+func intValue(value any, fallback int) int {
+	return defaultInt(asInt(value), fallback)
+}
+
+func boolValue(value any, fallback bool) bool {
+	return defaultBool(asBool(value), fallback)
 }
 
 func defaultInt(value int, ok bool, fallback int) int {
