@@ -21,68 +21,119 @@
 <body>
   <div id="toastContainer" class="toast-stack"></div>
 
-  <nav class="navbar navbar-expand-lg navbar-dark bg-primary panel-navbar">
+  <nav class="navbar navbar-dark bg-primary panel-navbar">
     <div class="container">
-      <a class="navbar-brand d-flex align-items-center gap-2" href="/">
-        <span class="brand-mark"><i class="bi bi-activity"></i></span>
-        <span>Server Panel</span>
+      <a class="navbar-brand" href="/">
+        <svg class="me-2" width="32" height="32" viewBox="0 0 32 32" aria-hidden="true">
+          <defs>
+            <radialGradient id="navBg3" cx="0.3" cy="0.3">
+              <stop offset="0%" stop-color="#fff" stop-opacity="0.9"/>
+              <stop offset="100%" stop-color="#0277bd" stop-opacity="0.8"/>
+            </radialGradient>
+            <linearGradient id="navEcg3" x1="0%" x2="100%">
+              <stop offset="0%" stop-color="#f08"/>
+              <stop offset="50%" stop-color="#0f8"/>
+              <stop offset="100%" stop-color="#80f"/>
+            </linearGradient>
+          </defs>
+          <circle cx="16" cy="16" r="15" fill="url(#navBg3)" stroke="#0277bd" stroke-width="1.5"/>
+          <circle cx="16" cy="16" r="13" fill="none" stroke="#fff" stroke-width="1" opacity="0.4"/>
+          <line x1="4" y1="16" x2="28" y2="16" stroke="#b3e5fc" stroke-width="0.5" opacity="0.8"/>
+          <path id="navP3" d="M4 16L8 16L9 15L10 17L11 14L12 18L13 10L14 22L15 16L28 16" fill="none" stroke="url(#navEcg3)" stroke-width="2.8"/>
+          <path d="M4 16L8 16L9 15L10 17L11 14L12 18L13 10L14 22L15 16L28 16" fill="none" stroke="#fff" stroke-width="1.2" opacity="0.7"/>
+          <circle r="1.5" fill="#fff">
+            <animateMotion dur="2s" repeatCount="indefinite">
+              <mpath href="#navP3"/>
+            </animateMotion>
+          </circle>
+          <circle cx="16" cy="16" r="8" fill="none" stroke="#f08" stroke-width="0.5" opacity="0.6">
+            <animate attributeName="r" values="8;12;8" dur="3s" repeatCount="indefinite"/>
+            <animate attributeName="opacity" values="0.6;0;0.6" dur="3s" repeatCount="indefinite"/>
+          </circle>
+        </svg>
+        服务器监控面板
       </a>
-      <div class="d-flex align-items-center gap-2 ms-auto flex-wrap justify-content-end">
-        <span id="adminSessionBadge" class="badge text-bg-success panel-badge">管理员会话</span>
-        <button id="refreshBtn" class="btn btn-outline-light btn-sm" type="button" title="刷新">
-          <i class="bi bi-arrow-clockwise"></i>
-        </button>
-        <button id="themeToggler" class="btn btn-outline-light btn-sm" type="button" title="切换主题">
+      <div class="d-flex align-items-center flex-wrap ms-auto">
+        <a class="nav-link text-light me-2 p-0" href="/" style="white-space: nowrap;">返回首页</a>
+        <a href="https://github.com/HX-Lin/server-panel" target="_blank" rel="noopener noreferrer" class="btn btn-outline-light btn-sm me-2" title="GitHub Repository">
+          <i class="bi bi-github"></i>
+        </a>
+        <button id="themeToggler" class="btn btn-outline-light btn-sm me-2" type="button" title="切换主题">
           <i class="bi bi-moon-stars-fill"></i>
         </button>
-        <a class="btn btn-light btn-sm" href="/">返回首页</a>
+        <span id="adminSessionBadge" class="badge text-bg-light text-dark me-2 panel-session-badge">管理员会话</span>
         <button id="logoutBtn" class="btn btn-outline-light btn-sm" type="button">退出</button>
       </div>
     </div>
   </nav>
 
-  <main class="container panel-shell">
-    <div class="card shadow-sm panel-main-card">
+  <main class="container mt-4 panel-main-container">
+    <div class="card shadow-sm panel-root-card">
       <div class="card-body">
-        <section class="summary-strip summary-strip-admin mb-4">
-          <div class="summary-tile">
-            <div class="summary-label">服务器</div>
-            <div id="summaryServers" class="summary-value">-</div>
+        <div class="summary-banner summary-banner-admin mb-4">
+          <div class="summary-chip summary-chip-server">
+            <span class="summary-icon"><i class="bi bi-hdd-network"></i></span>
+            <span class="summary-copy">
+              <span class="summary-label">服务器</span>
+              <strong id="summaryServers">-</strong>
+            </span>
           </div>
-          <div class="summary-tile">
-            <div class="summary-label">在线</div>
-            <div id="summaryOnline" class="summary-value">-</div>
+          <div class="summary-chip summary-chip-online">
+            <span class="summary-icon"><i class="bi bi-check2-circle"></i></span>
+            <span class="summary-copy">
+              <span class="summary-label">在线</span>
+              <strong id="summaryOnline">-</strong>
+            </span>
           </div>
-          <div class="summary-tile">
-            <div class="summary-label">GPU</div>
-            <div id="summaryGpu" class="summary-value">-</div>
+          <div class="summary-chip summary-chip-gpu">
+            <span class="summary-icon"><i class="bi bi-cpu"></i></span>
+            <span class="summary-copy">
+              <span class="summary-label">GPU</span>
+              <strong id="summaryGpu">-</strong>
+            </span>
           </div>
-          <div class="summary-tile">
-            <div class="summary-label">刷新频率</div>
-            <div id="summaryRefresh" class="summary-value">-</div>
+          <div class="summary-chip summary-chip-refresh">
+            <span class="summary-icon"><i class="bi bi-arrow-repeat"></i></span>
+            <span class="summary-copy">
+              <span class="summary-label">刷新频率</span>
+              <strong id="summaryRefresh">-</strong>
+            </span>
           </div>
-          <div class="summary-tile">
-            <div class="summary-label">过期阈值</div>
-            <div id="summaryStale" class="summary-value">-</div>
+          <div class="summary-chip summary-chip-stale">
+            <span class="summary-icon"><i class="bi bi-hourglass-split"></i></span>
+            <span class="summary-copy">
+              <span class="summary-label">过期阈值</span>
+              <strong id="summaryStale">-</strong>
+            </span>
           </div>
-          <div class="summary-tile">
-            <div class="summary-label">Key 模式</div>
-            <div id="summaryKeyMode" class="summary-value">-</div>
+          <div class="summary-chip summary-chip-key">
+            <span class="summary-icon"><i class="bi bi-key"></i></span>
+            <span class="summary-copy">
+              <span class="summary-label">Key 模式</span>
+              <strong id="summaryKeyMode">-</strong>
+            </span>
           </div>
-        </section>
+        </div>
 
-        <section class="panel-section">
+        <div class="mb-4">
+          <div class="d-flex justify-content-between align-items-start flex-wrap gap-2 mb-3">
+            <div>
+              <h5 class="card-title mb-1">
+                <i class="bi bi-server me-2"></i>资源监控
+              </h5>
+              <div class="text-body-secondary small">当前所有节点的实时资源与 GPU 负载</div>
+            </div>
+            <div class="d-flex align-items-center gap-2 flex-wrap">
+              <span id="lastUpdated" class="badge text-bg-light border panel-badge">等待刷新</span>
+              <button id="refreshBtn" class="btn btn-outline-secondary btn-sm" type="button" title="刷新">
+                <i class="bi bi-arrow-clockwise"></i>
+              </button>
+            </div>
+          </div>
+
           <div class="row g-4">
             <div class="col-xl-8">
-              <div class="panel-subsection h-100">
-                <div class="section-header">
-                  <div>
-                    <h2 class="section-title mb-1"><i class="bi bi-hdd-network me-2"></i>资源监控</h2>
-                    <div class="section-subtitle">当前所有节点的实时资源与 GPU 负载</div>
-                  </div>
-                  <span id="lastUpdated" class="badge text-bg-light border panel-badge">等待刷新</span>
-                </div>
-
+              <div class="section-box h-100">
                 <div class="table-responsive d-none d-lg-block">
                   <table class="table table-striped table-hover align-middle monitor-table mb-0">
                     <thead>
@@ -104,20 +155,25 @@
                   </table>
                 </div>
 
-                <div id="mobileServerContainer" class="d-lg-none mobile-card-stack">
-                  <div class="mobile-skeleton-card">
-                    <div class="text-center text-body-secondary py-5">加载中...</div>
+                <div id="mobileServerContainer" class="mobile-card-container d-lg-none">
+                  <div class="text-center p-3">
+                    <div class="spinner-border text-primary" role="status">
+                      <span class="visually-hidden">加载中...</span>
+                    </div>
+                    <div class="mt-2">加载服务器数据中...</div>
                   </div>
                 </div>
               </div>
             </div>
 
             <div class="col-xl-4">
-              <div class="panel-subsection h-100">
-                <div class="section-header">
+              <div class="section-box h-100">
+                <div class="mb-3">
                   <div>
-                    <h2 class="section-title mb-1"><i class="bi bi-sliders2 me-2"></i>面板状态</h2>
-                    <div class="section-subtitle">当前后端配置与采集模式</div>
+                    <div class="fw-semibold mb-1">
+                      <i class="bi bi-sliders2 me-2"></i>面板状态
+                    </div>
+                    <div class="text-body-secondary small">当前后端配置与采集模式</div>
                   </div>
                 </div>
 
@@ -127,18 +183,21 @@
               </div>
             </div>
           </div>
-        </section>
+        </div>
 
-        <hr class="section-divider">
+        <hr class="my-4">
 
-        <section class="panel-section">
+        <div>
+          <h5 class="card-title mb-3">
+            <i class="bi bi-key me-2"></i>SSH Key 分发
+          </h5>
           <div class="row g-4">
-            <div class="col-xl-7">
-              <div class="panel-subsection h-100">
-                <div class="section-header">
+            <div class="col-lg-7">
+              <div class="section-box h-100">
+                <div class="d-flex justify-content-between align-items-start flex-wrap gap-2 mb-3">
                   <div>
-                    <h2 class="section-title mb-1"><i class="bi bi-key me-2"></i>SSH Key 分发</h2>
-                    <div class="section-subtitle">管理员直接提交并分发 public key</div>
+                    <div class="fw-semibold mb-1">管理员提交</div>
+                    <div class="text-body-secondary small">管理员直接提交并分发 public key</div>
                   </div>
                   <span id="dryRunBadge" class="badge text-bg-warning panel-badge">dry_run</span>
                 </div>
@@ -157,12 +216,12 @@
               </div>
             </div>
 
-            <div class="col-xl-5">
-              <div class="panel-subsection h-100">
-                <div class="section-header">
+            <div class="col-lg-5">
+              <div class="section-box h-100">
+                <div class="d-flex justify-content-between align-items-start flex-wrap gap-2 mb-3">
                   <div>
-                    <h2 class="section-title mb-1"><i class="bi bi-clipboard2-pulse me-2"></i>执行结果</h2>
-                    <div class="section-subtitle">目标节点返回与分发耗时</div>
+                    <div class="fw-semibold mb-1">执行结果</div>
+                    <div class="text-body-secondary small">目标节点返回与分发耗时</div>
                   </div>
                   <span id="keyFingerprint" class="badge text-bg-light border panel-badge">无</span>
                 </div>
@@ -176,15 +235,17 @@
               </div>
             </div>
           </div>
-        </section>
+        </div>
       </div>
     </div>
   </main>
 
-  <footer class="panel-footer">
-    <div class="container d-flex justify-content-between align-items-center flex-wrap gap-2">
-      <span class="text-body-secondary small">Server Panel Admin</span>
-      <span class="text-body-secondary small">Frontend inspired by cf-vps-monitor</span>
+  <footer class="panel-footer footer fixed-bottom py-2 bg-light border-top">
+    <div class="container text-center">
+      <span class="text-muted small">服务器监控面板 &copy; 2026</span>
+      <a href="https://github.com/HX-Lin/server-panel" target="_blank" rel="noopener noreferrer" class="ms-3 text-muted" title="GitHub Repository">
+        <i class="bi bi-github"></i>
+      </a>
     </div>
   </footer>
 
