@@ -1,5 +1,5 @@
 (function () {
-  var assetVersion = "20260514-interact-modal-v6";
+  var assetVersion = "20260514-login-popover-v7";
   var backgroundCandidates = [
     "/static/backgrounds/panel-scene.avif?v=" + assetVersion,
     "/static/backgrounds/panel-scene.webp?v=" + assetVersion,
@@ -272,8 +272,9 @@
 
     var interactive = document.body.dataset.particlesInteractive !== "false";
     var config = buildParticlesConfig(interactive);
-    config.particles.opacity.value = 0.28;
-    config.particles.line_linked.opacity = 0.16;
+    config.particles.opacity.value = 0.38;
+    config.particles.line_linked.opacity = 0.24;
+    config.particles.size.value = 3.8;
     config.particles.move.speed = 1.8;
     window.particlesJS("particles-js", config);
   }

@@ -109,7 +109,7 @@ body {
   position: absolute;
   inset: 0;
   z-index: 0;
-  opacity: 0.72;
+  opacity: 0.92;
 }
 
 .panel-particles canvas {
@@ -118,7 +118,7 @@ body {
   display: block;
   width: 100%;
   height: 100%;
-  opacity: 0.7;
+  opacity: 0.88;
 }
 
 .panel-background-overlay {
@@ -181,6 +181,65 @@ body {
 .panel-session-badge {
   font-weight: 600;
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.7);
+}
+
+.admin-login-anchor {
+  position: relative;
+}
+
+.admin-login-popover {
+  position: absolute;
+  top: calc(100% + 0.7rem);
+  right: 0;
+  width: min(320px, calc(100vw - 2rem));
+  padding: 0.85rem;
+  border: 1px solid var(--panel-border);
+  border-radius: 0.5rem;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.7), rgba(248, 250, 253, 0.46));
+  box-shadow: 0 18px 40px rgba(15, 23, 42, 0.18);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+  z-index: 40;
+}
+
+[data-bs-theme="dark"] .admin-login-popover {
+  background: linear-gradient(180deg, rgba(17, 24, 39, 0.78), rgba(15, 23, 42, 0.54));
+}
+
+.admin-login-popover::before {
+  content: "";
+  position: absolute;
+  top: -0.45rem;
+  right: 1rem;
+  width: 0.9rem;
+  height: 0.9rem;
+  border-top: 1px solid var(--panel-border);
+  border-left: 1px solid var(--panel-border);
+  background: inherit;
+  transform: rotate(45deg);
+}
+
+.admin-login-popover-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 0.75rem;
+}
+
+.admin-login-close {
+  padding: 0.22rem 0.42rem;
+  line-height: 1;
+}
+
+.admin-login-form {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.admin-login-actions {
+  display: flex;
+  justify-content: flex-end;
 }
 
 .panel-main-container,

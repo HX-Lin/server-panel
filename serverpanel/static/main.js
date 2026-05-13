@@ -9,6 +9,11 @@ document.addEventListener("DOMContentLoaded", () => {
   ServerPanelShared.initTheme();
   document.getElementById("refreshBtn").addEventListener("click", () => refreshHome(true));
   document.getElementById("publicKeyForm").addEventListener("submit", submitPublicKey);
+  document.getElementById("adminAuthButton").addEventListener("click", handleAdminEntryClick);
+  document.getElementById("adminLoginForm").addEventListener("submit", submitAdminLogin);
+  document.getElementById("adminLoginClose").addEventListener("click", closeAdminLoginPopover);
+  document.addEventListener("click", handleDocumentClick);
+  document.addEventListener("keydown", handleDocumentKeydown);
   bootstrapHome();
 });
 
@@ -22,16 +27,16 @@ async function bootstrapHome() {
 function renderSessionState() {
   ServerPanelShared.setSessionBadge("sessionBadge", mainState.authenticated);
 
-  const adminLink = document.getElementById("adminAuthLink");
+  const adminButton = document.getElementById("adminAuthButton");
   const uploadTokenGroup = document.getElementById("uploadTokenGroup");
   const uploadModeBadge = document.getElementById("uploadModeBadge");
 
-  adminLink.href = mainState.authenticated ? "/admin.html" : "/login.html";
-  adminLink.textContent = mainState.authenticated ? "进入后台" : "管理员登录";
+  adminButton.textContent = mainState.authenticated ? "进入后台" : "管理员登录";
 
   uploadTokenGroup.hidden = mainState.authenticated;
   const tokenInput = document.getElementById("uploadTokenInput");
   if (mainState.authenticated) {
+    closeAdminLoginPopover();
     tokenInput.removeAttribute("required");
     uploadModeBadge.className = "badge text-bg-success panel-badge";
     uploadModeBadge.textContent = "管理员直传";
@@ -39,6 +44,74 @@ function renderSessionState() {
     tokenInput.setAttribute("required", "required");
     uploadModeBadge.className = "badge text-bg-warning panel-badge";
     uploadModeBadge.textContent = "需要 token";
+  }
+}
+
+function handleAdminEntryClick() {
+  if (mainState.authenticated) {
+    window.location.assign("/admin.html");
+    return;
+  }
+  toggleAdminLoginPopover();
+}
+
+function toggleAdminLoginPopover() {
+  const popover = document.getElementById("adminLoginPopover");
+  const passwordInput = document.getElementById("adminLoginPassword");
+  const shouldOpen = popover.classList.contains("d-none");
+
+  popover.classList.toggle("d-none", !shouldOpen);
+  popover.setAttribute("aria-hidden", shouldOpen ? "false" : "true");
+
+  if (shouldOpen) {
+    window.setTimeout(() => passwordInput.focus(), 0);
+  }
+}
+
+function closeAdminLoginPopover() {
+  const popover = document.getElementById("adminLoginPopover");
+  const form = document.getElementById("adminLoginForm");
+  popover.classList.add("d-none");
+  popover.setAttribute("aria-hidden", "true");
+  form.reset();
+}
+
+function handleDocumentClick(event) {
+  const anchor = document.querySelector(".admin-login-anchor");
+  const popover = document.getElementById("adminLoginPopover");
+  if (!anchor || popover.classList.contains("d-none")) {
+    return;
+  }
+  if (!anchor.contains(event.target)) {
+    closeAdminLoginPopover();
+  }
+}
+
+function handleDocumentKeydown(event) {
+  if (event.key === "Escape") {
+    closeAdminLoginPopover();
+  }
+}
+
+async function submitAdminLogin(event) {
+  event.preventDefault();
+  const passwordInput = document.getElementById("adminLoginPassword");
+  const password = passwordInput.value;
+
+  try {
+    await ServerPanelShared.api("/api/login", {
+      method: "POST",
+      body: { password: password },
+    });
+    mainState.authenticated = true;
+    renderSessionState();
+    ServerPanelShared.showToast("success", "登录成功", "正在进入管理后台。");
+    window.setTimeout(() => {
+      window.location.assign("/admin.html");
+    }, 220);
+  } catch (error) {
+    ServerPanelShared.showToast("danger", "登录失败", error.message || "管理员口令不正确。");
+    passwordInput.select();
   }
 }
 

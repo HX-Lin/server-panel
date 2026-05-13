@@ -16,7 +16,7 @@ document.addEventListener("DOMContentLoaded", () => {
 async function bootstrapAdmin() {
   const session = await ServerPanelShared.fetchSession();
   if (!session.authenticated) {
-    window.location.replace("/login.html");
+    window.location.replace("/");
     return;
   }
   ServerPanelShared.setSessionBadge("adminSessionBadge", true);
@@ -46,7 +46,7 @@ async function refreshAdmin(showToast) {
   } catch (error) {
     const session = await ServerPanelShared.fetchSession();
     if (!session.authenticated) {
-      window.location.replace("/login.html");
+      window.location.replace("/");
       return;
     }
     ServerPanelShared.showToast("danger", "刷新失败", error.message || "无法获取后台数据。");
@@ -176,5 +176,5 @@ async function logoutAdmin() {
   } catch (error) {
     // Ignore logout errors and redirect anyway.
   }
-  window.location.replace("/login.html");
+  window.location.replace("/");
 }
