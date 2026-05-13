@@ -280,11 +280,13 @@ func asBool(value any) (bool, bool) {
 }
 
 func intValue(value any, fallback int) int {
-	return defaultInt(asInt(value), fallback)
+	parsed, ok := asInt(value)
+	return defaultInt(parsed, ok, fallback)
 }
 
 func boolValue(value any, fallback bool) bool {
-	return defaultBool(asBool(value), fallback)
+	parsed, ok := asBool(value)
+	return defaultBool(parsed, ok, fallback)
 }
 
 func defaultInt(value int, ok bool, fallback int) int {
