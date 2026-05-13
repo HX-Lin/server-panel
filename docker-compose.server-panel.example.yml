@@ -1,0 +1,27 @@
+services:
+  server-panel:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: server-panel:latest
+    container_name: server-panel
+    restart: unless-stopped
+    env_file:
+      - ./server-panel.env
+    environment:
+      TZ: Asia/Shanghai
+      SERVER_PANEL_CONFIG: /app/config/config.json
+    volumes:
+      - ./config.docker.json:/app/config/config.json:ro
+      - ./data:/app/data
+      - ./ssh/id_ed25519_panel:/root/.ssh/id_ed25519_panel:ro
+      - ${SERVER_PANEL_BASTION_AUTHORIZED_KEYS:-/home/ubuntu/.ssh/authorized_keys}:/host-ssh/bastion_authorized_keys
+    networks:
+      - npm_default
+    # 如果你要临时绕过 Nginx Proxy Manager 调试，再打开下面这行。
+    # ports:
+    #   - "127.0.0.1:8787:8787"
+
+networks:
+  npm_default:
+    external: true

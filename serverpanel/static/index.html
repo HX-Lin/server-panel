@@ -1,0 +1,113 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Lab Server Panel</title>
+  <link rel="stylesheet" href="/static/styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <div>
+      <h1>Lab Server Panel</h1>
+      <p id="subtitle">Bastion resource console</p>
+    </div>
+    <div class="topbar-actions">
+      <span id="sessionState" class="pill muted">未登录</span>
+      <button id="refreshBtn" class="icon-button" type="button" title="刷新">↻</button>
+      <button id="logoutBtn" class="secondary" type="button" hidden>退出</button>
+    </div>
+  </header>
+
+  <main class="layout">
+    <section id="entryPanel" class="entry-grid">
+      <div id="loginPanel" class="panel">
+        <div class="section-title">
+          <h2>管理员登录</h2>
+          <span class="pill">Admin</span>
+        </div>
+        <form id="loginForm" class="form-stack">
+          <label>
+            <span>密码</span>
+            <input id="passwordInput" type="password" autocomplete="current-password" required>
+          </label>
+          <button type="submit">登录</button>
+        </form>
+      </div>
+
+      <div id="publicKeyPanel" class="panel">
+        <div class="section-title">
+          <h2>SSH Key 自助提交</h2>
+          <span class="pill">Token</span>
+        </div>
+        <form id="publicKeyForm" class="form-stack key-form">
+          <label>
+            <span>Public key</span>
+            <textarea name="public_key" rows="5" spellcheck="false" placeholder="ssh-ed25519 AAAA... user@host" required></textarea>
+          </label>
+          <label>
+            <span>上传 token</span>
+            <input name="upload_token" type="password" autocomplete="off" required>
+          </label>
+          <button type="submit">提交 SSH key</button>
+        </form>
+      </div>
+    </section>
+
+    <section id="dashboard" hidden>
+      <div class="summary-grid">
+        <div class="summary-item">
+          <span>服务器</span>
+          <strong id="summaryServers">-</strong>
+        </div>
+        <div class="summary-item">
+          <span>在线</span>
+          <strong id="summaryOnline">-</strong>
+        </div>
+        <div class="summary-item">
+          <span>GPU</span>
+          <strong id="summaryGpu">-</strong>
+        </div>
+        <div class="summary-item">
+          <span>Key 模式</span>
+          <strong id="summaryKeyMode">-</strong>
+        </div>
+      </div>
+
+      <section class="section-block">
+        <div class="section-title">
+          <h2>资源监控</h2>
+          <span id="lastUpdated" class="pill muted">等待刷新</span>
+        </div>
+        <div id="serverGrid" class="server-grid"></div>
+      </section>
+
+      <section class="section-block two-column">
+        <div class="panel">
+          <div class="section-title">
+            <h2>SSH Key 添加</h2>
+            <span id="dryRunBadge" class="pill warning">dry_run</span>
+          </div>
+          <form id="adminKeyForm" class="form-stack key-form">
+            <label>
+              <span>Public key</span>
+              <textarea name="public_key" rows="5" spellcheck="false" placeholder="ssh-ed25519 AAAA... user@host" required></textarea>
+            </label>
+            <button type="submit">提交并分发</button>
+          </form>
+        </div>
+        <div class="panel">
+          <div class="section-title">
+            <h2>执行结果</h2>
+            <span id="keyFingerprint" class="pill muted">无</span>
+          </div>
+          <div id="keyResult" class="result-list empty">暂无提交结果</div>
+        </div>
+      </section>
+    </section>
+  </main>
+
+  <div id="toast" class="toast" hidden></div>
+  <script src="/static/app.js"></script>
+</body>
+</html>

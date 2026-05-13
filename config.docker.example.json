@@ -1,0 +1,104 @@
+{
+  "bind": "0.0.0.0",
+  "port": 8787,
+  "refresh_seconds": 15,
+  "audit_log": "/app/data/audit.log",
+  "ssh": {
+    "connect_timeout_seconds": 6,
+    "known_hosts_mode": "accept-new",
+    "identity_file": "/root/.ssh/id_ed25519_panel",
+    "extra_options": []
+  },
+  "auth": {
+    "admin_password_env": "SERVER_PANEL_ADMIN_PASSWORD",
+    "session_secret_env": "SERVER_PANEL_SESSION_SECRET",
+    "key_upload_token_env": "SERVER_PANEL_KEY_UPLOAD_TOKEN",
+    "session_ttl_seconds": 28800,
+    "secure_cookies": true
+  },
+  "metrics": {
+    "stale_seconds": 90,
+    "store_path": "/app/data/metrics.json"
+  },
+  "key_management": {
+    "enabled": true,
+    "dry_run": true,
+    "allow_public_upload_with_token": true,
+    "allowed_key_types": [
+      "ssh-ed25519",
+      "ecdsa-sha2-nistp256",
+      "ecdsa-sha2-nistp384",
+      "ecdsa-sha2-nistp521",
+      "sk-ssh-ed25519@openssh.com",
+      "sk-ecdsa-sha2-nistp256@openssh.com"
+    ],
+    "allow_ssh_rsa": false,
+    "targets": [
+      {
+        "id": "bastion",
+        "name": "Jumpbox",
+        "mode": "local",
+        "authorized_keys": "/host-ssh/bastion_authorized_keys"
+      },
+      {
+        "id": "gpu-01",
+        "name": "GPU Server 01",
+        "mode": "ssh",
+        "host": "10.10.0.11",
+        "user": "lab",
+        "port": 22,
+        "authorized_keys": "~/.ssh/authorized_keys"
+      },
+      {
+        "id": "gpu-02",
+        "name": "GPU Server 02",
+        "mode": "ssh",
+        "host": "10.10.0.12",
+        "user": "lab",
+        "port": 22,
+        "authorized_keys": "~/.ssh/authorized_keys"
+      },
+      {
+        "id": "gpu-03",
+        "name": "GPU Server 03",
+        "mode": "ssh",
+        "host": "10.10.0.13",
+        "user": "lab",
+        "port": 22,
+        "authorized_keys": "~/.ssh/authorized_keys"
+      }
+    ]
+  },
+  "servers": [
+    {
+      "id": "gpu-01",
+      "name": "GPU Server 01",
+      "mode": "komari",
+      "host": "10.10.0.11",
+      "port": 22,
+      "tags": ["A100", "CUDA"],
+      "komari_token_env": "SERVER_PANEL_KOMARI_TOKEN_GPU01",
+      "enabled": true
+    },
+    {
+      "id": "gpu-02",
+      "name": "GPU Server 02",
+      "mode": "komari",
+      "host": "10.10.0.12",
+      "port": 22,
+      "tags": ["RTX 4090", "Training"],
+      "komari_token_env": "SERVER_PANEL_KOMARI_TOKEN_GPU02",
+      "enabled": true
+    },
+    {
+      "id": "gpu-03",
+      "name": "GPU Server 03",
+      "mode": "komari",
+      "host": "10.10.0.13",
+      "port": 22,
+      "tags": ["Inference"],
+      "komari_token_env": "SERVER_PANEL_KOMARI_TOKEN_GPU03",
+      "enabled": true
+    }
+  ]
+}
