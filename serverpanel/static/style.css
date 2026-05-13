@@ -128,13 +128,21 @@ body {
     linear-gradient(180deg, var(--panel-overlay-top), var(--panel-overlay-bottom));
 }
 
-.panel-navbar,
 .panel-main-container,
 .login-main-container,
-.panel-footer,
-.toast-stack {
+.panel-footer {
   position: relative;
   z-index: 3;
+}
+
+.panel-navbar {
+  position: relative;
+  z-index: 12;
+}
+
+.toast-stack {
+  position: relative;
+  z-index: 1090;
 }
 
 [data-bs-theme="dark"] h1,
@@ -185,6 +193,7 @@ body {
 
 .admin-login-anchor {
   position: relative;
+  z-index: 13;
 }
 
 .admin-login-popover {
@@ -199,7 +208,7 @@ body {
   box-shadow: 0 18px 40px rgba(15, 23, 42, 0.18);
   backdrop-filter: blur(18px);
   -webkit-backdrop-filter: blur(18px);
-  z-index: 40;
+  z-index: 14;
 }
 
 [data-bs-theme="dark"] .admin-login-popover {
