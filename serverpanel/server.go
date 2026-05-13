@@ -104,10 +104,19 @@ func NewRouter(state *PanelState) *gin.Engine {
 	router.HEAD("/", state.handleIndex)
 	router.GET("/index.html", state.handleIndex)
 	router.HEAD("/index.html", state.handleIndex)
+	router.GET("/login", state.handleLoginPage)
+	router.HEAD("/login", state.handleLoginPage)
+	router.GET("/login.html", state.handleLoginPage)
+	router.HEAD("/login.html", state.handleLoginPage)
+	router.GET("/admin", state.handleAdminPage)
+	router.HEAD("/admin", state.handleAdminPage)
+	router.GET("/admin.html", state.handleAdminPage)
+	router.HEAD("/admin.html", state.handleAdminPage)
 	router.GET("/static/*path", state.handleStatic)
 	router.HEAD("/static/*path", state.handleStatic)
 
 	router.GET("/api/session", state.handleSession)
+	router.GET("/api/public/servers", state.handlePublicServers)
 	router.GET("/api/settings", state.handleSettings)
 	router.GET("/api/servers", state.handleServers)
 	router.GET("/api/clients/report", state.handleClientReportWebSocket)
@@ -130,7 +139,15 @@ func NewRouter(state *PanelState) *gin.Engine {
 }
 
 func (s *PanelState) handleIndex(c *gin.Context) {
-	s.serveStaticFile(c, "index.html")
+	s.servePage(c, "index.html")
+}
+
+func (s *PanelState) handleLoginPage(c *gin.Context) {
+	s.servePage(c, "login.html")
+}
+
+func (s *PanelState) handleAdminPage(c *gin.Context) {
+	s.servePage(c, "admin.html")
 }
 
 func (s *PanelState) handleStatic(c *gin.Context) {
@@ -140,6 +157,33 @@ func (s *PanelState) handleStatic(c *gin.Context) {
 		return
 	}
 	s.serveStaticFile(c, relativePath)
+}
+
+func (s *PanelState) handlePublicServers(c *gin.Context) {
+	snapshot := s.metricsStore.Snapshot(s.config)
+	servers, _ := snapshot["servers"].([]map[string]any)
+
+	publicServers := make([]map[string]any, 0, len(servers))
+	for _, server := range servers {
+		publicServers = append(publicServers, map[string]any{
+			"id":                 server["id"],
+			"name":               server["name"],
+			"tags":               server["tags"],
+			"enabled":            server["enabled"],
+			"status":             server["status"],
+			"error":              server["error"],
+			"metrics":            server["metrics"],
+			"last_report_at":     server["last_report_at"],
+			"report_age_seconds": server["report_age_seconds"],
+		})
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"generated_at":    snapshot["generated_at"],
+		"refresh_seconds": snapshot["refresh_seconds"],
+		"collection_mode": snapshot["collection_mode"],
+		"servers":         publicServers,
+	})
 }
 
 func (s *PanelState) handleSession(c *gin.Context) {
@@ -374,6 +418,10 @@ func (s *PanelState) serveStaticFile(c *gin.Context, relativePath string) {
 		return
 	}
 	c.Data(http.StatusOK, contentType, data)
+}
+
+func (s *PanelState) servePage(c *gin.Context, page string) {
+	s.serveStaticFile(c, page)
 }
 
 func (s *PanelState) isAuthenticated(c *gin.Context) bool {
