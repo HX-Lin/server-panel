@@ -8,7 +8,7 @@
 - 使用 Komari agent 上报指标，不占用 SSH 登录通道。
 - 保持当前前端页面和接口形状不变。
 - 支持管理员登录后提交 public key。
-- 支持带上传 token 的自助提交。
+- 支持普通用户按姓名全拼小写 token 自助查询、提交和删除自己的 key。
 - 默认开启 `dry_run`，不会真的修改任何 `authorized_keys`。
 - 只接受 OpenSSH public key 单行格式，拒绝 private key 和伪造 key type/body。
 
@@ -18,7 +18,9 @@
 cp config.example.json config.json
 export SERVER_PANEL_ADMIN_PASSWORD='replace-with-a-long-password'
 export SERVER_PANEL_SESSION_SECRET='replace-with-random-session-secret'
-export SERVER_PANEL_KEY_UPLOAD_TOKEN='replace-with-upload-token'
+# Optional legacy shared upload token. Ordinary users can directly use their
+# lowercase full-name token on the homepage, so this can stay empty.
+export SERVER_PANEL_KEY_UPLOAD_TOKEN=''
 export SERVER_PANEL_KOMARI_TOKEN_GPU01='replace-with-gpu01-token'
 export SERVER_PANEL_KOMARI_TOKEN_GPU02='replace-with-gpu02-token'
 export SERVER_PANEL_KOMARI_TOKEN_GPU03='replace-with-gpu03-token'
@@ -203,6 +205,13 @@ http://10.10.0.1:8787
 }
 ```
 
+首页现在支持普通用户自助管理自己的 key，规则别写飞了：
+
+1. 普通用户 token 使用“姓名全拼小写”，例如 `hanxiaolin`。
+2. public key comment 需要带 owner 前缀，例如 `hanxiaolin-2024-key1`。
+3. 页面会自动读取当前用户已经存在的 key，并允许删除旧 key。
+4. `SERVER_PANEL_KEY_UPLOAD_TOKEN` 只作为兼容旧流程或应急兜底，不再是普通用户的主流程。
+
 如果实验室里还有老旧客户端必须用 RSA，可以把 `allow_ssh_rsa` 改成 `true`。正常情况建议统一 `ssh-ed25519`，别抱着陈年老 key 不撒手。
 
 ## 运行方式
@@ -220,7 +229,7 @@ http://10.10.0.1:8787
 
 1. Komari client token 和用户上传 token 分开，不要混用。
 2. `/api/clients/report` 和 `/api/clients/uploadBasicInfo` 只开放给内网或指定源地址。
-3. SSH key 继续保留，但匿名上传接口别裸奔，至少走登录或短期 token。
+3. 当前“姓名全拼小写 token”本质上是弱身份标识，不是强认证。内网实验室先这么跑可以，真要长期上线，建议换成每人独立随机 token、OIDC 或 SSO。
 4. 给实验室成员单独系统用户或至少单独 group，别大家共用一个高权限账户。
 5. 审计日志必须保留 fingerprint、提交人、分发目标和时间。
 6. WireGuard 适合控“谁能进内网”，SSH key 适合控“谁能登录主机”；两者是组合拳，不是谁替代谁。

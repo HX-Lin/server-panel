@@ -1,5 +1,5 @@
 (function () {
-  var assetVersion = "20260514-login-popover-v7";
+  var assetVersion = "20260514-key-self-service-v9";
   var backgroundCandidates = [
     "/static/backgrounds/panel-scene.avif?v=" + assetVersion,
     "/static/backgrounds/panel-scene.webp?v=" + assetVersion,

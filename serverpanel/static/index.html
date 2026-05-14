@@ -16,7 +16,7 @@
   <link rel="preconnect" href="https://cdn.jsdelivr.net">
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" crossorigin="anonymous">
   <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet" crossorigin="anonymous">
-  <link rel="stylesheet" href="/static/style.css?v=20260514-login-popover-zfix-v8">
+  <link rel="stylesheet" href="/static/style.css?v=20260514-key-self-service-v9">
 </head>
 <body data-particles-interactive="true">
   <div id="toastContainer" class="toast-stack"></div>
@@ -170,17 +170,19 @@
                     <div class="fw-semibold mb-1">Public key 上传</div>
                     <div class="text-body-secondary small">提交 OpenSSH public key 并走分发流程</div>
                   </div>
-                  <span id="uploadModeBadge" class="badge text-bg-warning panel-badge">需要 token</span>
+                  <span id="uploadModeBadge" class="badge text-bg-warning panel-badge">用户自助</span>
                 </div>
 
                 <form id="publicKeyForm" class="row g-3">
                   <div class="col-12">
                     <label class="form-label" for="publicKeyInput">Public key</label>
                     <textarea id="publicKeyInput" name="public_key" class="form-control code-input" rows="6" spellcheck="false" placeholder="ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAA... user@host" required></textarea>
+                    <div class="form-text">普通用户提交时，注释建议写成 <code>hanxiaolin-2024-key1</code> 这种格式，系统会按前缀识别归属。</div>
                   </div>
                   <div id="uploadTokenGroup" class="col-12">
-                    <label class="form-label" for="uploadTokenInput">上传 token</label>
-                    <input id="uploadTokenInput" name="upload_token" type="password" class="form-control" autocomplete="off" required>
+                    <label class="form-label" for="uploadTokenInput">用户 token</label>
+                    <input id="uploadTokenInput" name="upload_token" type="text" class="form-control" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="例如 hanxiaolin" required>
+                    <div class="form-text">普通用户 token 为姓名全拼小写。填入后会自动读取你当前已经登记的 SSH key。</div>
                   </div>
                   <div class="col-12 d-flex justify-content-end">
                     <button type="submit" class="btn btn-primary px-4">
@@ -195,15 +197,38 @@
               <div class="section-box h-100">
                 <div class="d-flex justify-content-between align-items-start flex-wrap gap-2 mb-3">
                   <div>
-                    <div class="fw-semibold mb-1">执行结果</div>
-                    <div class="text-body-secondary small">当前上传的指纹与分发状态</div>
+                    <div class="fw-semibold mb-1">当前已登记的 SSH Key</div>
+                    <div class="text-body-secondary small">自动识别你已经存在的 key，旧的可以直接删掉</div>
+                  </div>
+                  <button id="ownedKeysRefreshBtn" class="btn btn-outline-secondary btn-sm" type="button" title="刷新我的 key">
+                    <i class="bi bi-arrow-repeat"></i>
+                  </button>
+                </div>
+
+                <div id="ownedKeysHint" class="alert alert-info subtle-alert mb-3">
+                  先输入你的用户 token，系统会把当前已经分发到跳板机和各台服务器上的 key 列出来。
+                </div>
+
+                <div id="ownedKeysEmpty" class="empty-state">
+                  <i class="bi bi-inboxes"></i>
+                  <div>还没有读取到当前用户的 SSH key</div>
+                </div>
+
+                <div id="ownedKeysList" class="d-none"></div>
+
+                <hr class="my-4">
+
+                <div class="d-flex justify-content-between align-items-start flex-wrap gap-2 mb-3">
+                  <div>
+                    <div class="fw-semibold mb-1">最近一次执行结果</div>
+                    <div class="text-body-secondary small">本次上传或删除的目标执行状态</div>
                   </div>
                   <span id="keyFingerprint" class="badge text-bg-light border panel-badge">无</span>
                 </div>
 
-                <div id="keyResultEmpty" class="empty-state">
+                <div id="keyResultEmpty" class="empty-state compact-empty-state">
                   <i class="bi bi-inboxes"></i>
-                  <div>还没有新的提交结果</div>
+                  <div>还没有新的执行结果</div>
                 </div>
 
                 <div id="keyResultList" class="d-none"></div>
@@ -226,8 +251,8 @@
 
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" crossorigin="anonymous"></script>
   <script src="https://cdn.jsdelivr.net/npm/particles.js@2.0.0/particles.min.js" crossorigin="anonymous"></script>
-  <script src="/static/scene-effects.js?v=20260514-login-popover-zfix-v8"></script>
-  <script src="/static/shared.js?v=20260514-login-popover-zfix-v8"></script>
-  <script src="/static/main.js?v=20260514-login-popover-zfix-v8"></script>
+  <script src="/static/scene-effects.js?v=20260514-key-self-service-v9"></script>
+  <script src="/static/shared.js?v=20260514-key-self-service-v9"></script>
+  <script src="/static/main.js?v=20260514-key-self-service-v9"></script>
 </body>
 </html>

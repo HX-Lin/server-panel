@@ -24,7 +24,7 @@ func NewSSHRunner(config *AppConfig) *SSHRunner {
 	return &SSHRunner{config: config}
 }
 
-func (r *SSHRunner) RunKeyScript(target KeyTarget, script string) CommandResult {
+func (r *SSHRunner) RunScript(target KeyTarget, script string) CommandResult {
 	command, err := r.commandFor(target.Mode, target.Host, target.User, target.Port)
 	if err != nil {
 		return CommandResult{
@@ -34,6 +34,10 @@ func (r *SSHRunner) RunKeyScript(target KeyTarget, script string) CommandResult 
 		}
 	}
 	return r.run(command, script)
+}
+
+func (r *SSHRunner) RunKeyScript(target KeyTarget, script string) CommandResult {
+	return r.RunScript(target, script)
 }
 
 func (r *SSHRunner) commandFor(mode, host, user string, port int) ([]string, error) {

@@ -123,7 +123,7 @@ func DistributePublicKey(config *AppConfig, runner *SSHRunner, publicKey PublicK
 		}
 
 		script := buildAuthorizedKeysScript(target, publicKey)
-		result := runner.RunKeyScript(target, script)
+		result := runner.RunScript(target, script)
 		stdout := strings.TrimSpace(result.Stdout)
 		status := "failed"
 		if result.OK && (stdout == "added" || stdout == "exists") {
@@ -144,7 +144,7 @@ func DistributePublicKey(config *AppConfig, runner *SSHRunner, publicKey PublicK
 		})
 	}
 
-	if err := writeAuditLog(config, publicKey, actor, results); err != nil {
+	if err := writeActionAuditLog(config, "upload", publicKey, actor, results); err != nil {
 		return nil, err
 	}
 
@@ -208,7 +208,7 @@ func sanitizeComment(comment string) string {
 	return strings.TrimSpace(builder.String())
 }
 
-func writeAuditLog(config *AppConfig, publicKey PublicKey, actor string, results []map[string]any) error {
+func writeActionAuditLog(config *AppConfig, action string, publicKey PublicKey, actor string, results []map[string]any) error {
 	if config.AuditLog == "" {
 		return nil
 	}
@@ -226,6 +226,7 @@ func writeAuditLog(config *AppConfig, publicKey PublicKey, actor string, results
 	}
 
 	line := time.Now().Format("2006-01-02T15:04:05-0700") +
+		"\taction=" + action +
 		"\tactor=" + actor +
 		"\tfingerprint=" + publicKey.Fingerprint +
 		"\ttype=" + publicKey.KeyType +

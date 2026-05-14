@@ -30,6 +30,14 @@ type PanelState struct {
 	tokens       map[string]string
 }
 
+type UploadIdentity struct {
+	Allowed         bool
+	IsAdmin         bool
+	Actor           string
+	UserToken       string
+	UsesSharedToken bool
+}
+
 func Run(configPath string) error {
 	config, err := LoadConfig(configPath)
 	if err != nil {
@@ -123,7 +131,9 @@ func NewRouter(state *PanelState) *gin.Engine {
 
 	router.POST("/api/login", state.handleLogin)
 	router.POST("/api/logout", state.handleLogout)
+	router.POST("/api/keys/inspect", state.handleKeyInspect)
 	router.POST("/api/keys/upload", state.handleKeyUpload)
+	router.POST("/api/keys/delete", state.handleKeyDelete)
 	router.POST("/api/clients/report", state.handleClientReportPost)
 	router.POST("/api/clients/uploadBasicInfo", state.handleClientUploadBasicInfo)
 
@@ -255,7 +265,8 @@ func (s *PanelState) handleKeyUpload(c *gin.Context) {
 		return
 	}
 
-	if !s.canUploadKey(c, body) {
+	identity := s.resolveUploadIdentity(c, body)
+	if !identity.Allowed {
 		panelError(c, http.StatusUnauthorized, "authentication or upload token required")
 		return
 	}
@@ -271,12 +282,103 @@ func (s *PanelState) handleKeyUpload(c *gin.Context) {
 		return
 	}
 
-	actor := "upload-token"
-	if s.isAuthenticated(c) {
-		actor = "admin"
+	if identity.UserToken != "" && !identity.IsAdmin {
+		ownerToken := ExtractCommentOwnerToken(publicKey.Comment)
+		if ownerToken == "" {
+			panelError(c, http.StatusBadRequest, "public key comment must use owner-grade-keyN format, for example hanxiaolin-2024-key1")
+			return
+		}
+		if ownerToken != identity.UserToken {
+			panelError(c, http.StatusBadRequest, "upload token does not match public key comment owner")
+			return
+		}
 	}
 
-	result, err := DistributePublicKey(s.config, s.runner, publicKey, actor)
+	result, err := DistributePublicKey(s.config, s.runner, publicKey, identity.Actor)
+	if err != nil {
+		var keyErr *PublicKeyError
+		if errors.As(err, &keyErr) {
+			panelError(c, http.StatusBadRequest, keyErr.Error())
+			return
+		}
+		panelError(c, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	c.JSON(http.StatusOK, result)
+}
+
+func (s *PanelState) handleKeyInspect(c *gin.Context) {
+	body, err := readJSONBody(c)
+	if err != nil {
+		panelError(c, http.StatusBadRequest, "invalid JSON")
+		return
+	}
+
+	identity := s.resolveUploadIdentity(c, body)
+	if !identity.Allowed {
+		panelError(c, http.StatusUnauthorized, "authentication or upload token required")
+		return
+	}
+	if identity.UserToken == "" {
+		panelError(c, http.StatusBadRequest, "self-service key inspection requires a user token")
+		return
+	}
+
+	var submitted *PublicKey
+	if raw := strings.TrimSpace(asString(body["public_key"])); raw != "" {
+		publicKey, err := ValidatePublicKey(raw, s.config.KeyManagement.AllowedKeyTypes, s.config.KeyManagement.AllowSSHRSA)
+		if err != nil {
+			var keyErr *PublicKeyError
+			if errors.As(err, &keyErr) {
+				panelError(c, http.StatusBadRequest, keyErr.Error())
+				return
+			}
+			panelError(c, http.StatusInternalServerError, err.Error())
+			return
+		}
+		submitted = &publicKey
+	}
+
+	result, err := InspectAuthorizedKeys(s.config, s.runner, identity.UserToken, submitted)
+	if err != nil {
+		var keyErr *PublicKeyError
+		if errors.As(err, &keyErr) {
+			panelError(c, http.StatusBadRequest, keyErr.Error())
+			return
+		}
+		panelError(c, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	c.JSON(http.StatusOK, result)
+}
+
+func (s *PanelState) handleKeyDelete(c *gin.Context) {
+	body, err := readJSONBody(c)
+	if err != nil {
+		panelError(c, http.StatusBadRequest, "invalid JSON")
+		return
+	}
+
+	identity := s.resolveUploadIdentity(c, body)
+	if !identity.Allowed {
+		panelError(c, http.StatusUnauthorized, "authentication or upload token required")
+		return
+	}
+	if identity.UserToken == "" && !identity.IsAdmin {
+		panelError(c, http.StatusBadRequest, "self-service key deletion requires a user token")
+		return
+	}
+
+	result, err := DeleteOwnedPublicKey(
+		s.config,
+		s.runner,
+		identity.UserToken,
+		asString(body["fingerprint"]),
+		identity.Actor,
+		identity.IsAdmin,
+	)
 	if err != nil {
 		var keyErr *PublicKeyError
 		if errors.As(err, &keyErr) {
@@ -456,16 +558,46 @@ func (s *PanelState) requireAuth(c *gin.Context) bool {
 }
 
 func (s *PanelState) canUploadKey(c *gin.Context, body map[string]any) bool {
+	return s.resolveUploadIdentity(c, body).Allowed
+}
+
+func (s *PanelState) resolveUploadIdentity(c *gin.Context, body map[string]any) UploadIdentity {
 	if s.isAuthenticated(c) {
-		return true
+		rawToken := NormalizeUserToken(asString(body["upload_token"]))
+		identity := UploadIdentity{
+			Allowed: true,
+			IsAdmin: true,
+			Actor:   "admin",
+		}
+		if IsUserTokenFormatValid(rawToken) {
+			identity.UserToken = rawToken
+			identity.Actor = "admin:" + rawToken
+		}
+		return identity
 	}
 	if !s.config.KeyManagement.AllowPublicUploadWithToken {
-		return false
+		return UploadIdentity{}
 	}
 
 	expected := GetUploadToken(s.config.Auth)
-	supplied := asString(body["upload_token"])
-	return expected != "" && secureEqual(expected, supplied)
+	supplied := strings.TrimSpace(asString(body["upload_token"]))
+	if expected != "" && secureEqual(expected, supplied) {
+		return UploadIdentity{
+			Allowed:         true,
+			Actor:           "upload-token",
+			UsesSharedToken: true,
+		}
+	}
+
+	userToken := NormalizeUserToken(supplied)
+	if IsUserTokenFormatValid(userToken) {
+		return UploadIdentity{
+			Allowed:   true,
+			Actor:     "user:" + userToken,
+			UserToken: userToken,
+		}
+	}
+	return UploadIdentity{}
 }
 
 func readJSONBody(c *gin.Context) (map[string]any, error) {

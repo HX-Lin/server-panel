@@ -867,6 +867,10 @@ body {
   opacity: 0.8;
 }
 
+.compact-empty-state {
+  min-height: 160px;
+}
+
 .result-item {
   display: flex;
   align-items: flex-start;
@@ -882,6 +886,52 @@ body {
   color: var(--panel-muted);
   font-size: 0.85rem;
   line-height: 1.4;
+}
+
+.owned-key-item {
+  align-items: center;
+}
+
+.owned-key-main {
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+.owned-key-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.owned-key-badges,
+.owned-key-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.owned-key-meta {
+  display: grid;
+  gap: 0.3rem;
+}
+
+.owned-key-meta > div {
+  word-break: break-word;
+}
+
+.owned-key-meta-label {
+  display: inline-block;
+  min-width: 6.5rem;
+  margin-right: 0.4rem;
+  font-weight: 600;
+  color: var(--panel-text);
+}
+
+[data-bs-theme="dark"] .owned-key-meta-label {
+  color: #dbe6f5;
 }
 
 .status-badge {
