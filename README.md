@@ -8,7 +8,7 @@
 - 使用 Komari agent 上报指标，不占用 SSH 登录通道。
 - 保持当前前端页面和接口形状不变。
 - 支持管理员登录后提交 public key。
-- 支持普通用户按姓名全拼小写 token 自助查询、提交和删除自己的 key。
+- 支持普通用户先用姓名全拼小写 token 登录，再自助查询、提交和删除自己的 key。
 - 默认开启 `dry_run`，不会真的修改任何 `authorized_keys`。
 - 只接受 OpenSSH public key 单行格式，拒绝 private key 和伪造 key type/body。
 
@@ -209,8 +209,8 @@ http://10.10.0.1:8787
 
 1. 普通用户 token 使用“姓名全拼小写”，例如 `hanxiaolin`。
 2. public key comment 需要带 owner 前缀，例如 `hanxiaolin-2024-key1`。
-3. 页面会自动读取当前用户已经存在的 key，并允许删除旧 key。
-4. `SERVER_PANEL_KEY_UPLOAD_TOKEN` 只作为兼容旧流程或应急兜底，不再是普通用户的主流程。
+3. 首页访客只看服务器状态；用户登录后，页面会自动读取当前用户已经存在的 key，并允许删除旧 key。
+4. `SERVER_PANEL_KEY_UPLOAD_TOKEN` 仍保留在配置里兼容旧版本部署，但当前页面主流程已经不依赖它。
 
 如果实验室里还有老旧客户端必须用 RSA，可以把 `allow_ssh_rsa` 改成 `true`。正常情况建议统一 `ssh-ed25519`，别抱着陈年老 key 不撒手。
 

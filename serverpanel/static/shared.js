@@ -104,17 +104,36 @@
     try {
       return await api("/api/session");
     } catch (error) {
-      return { authenticated: false };
+      return { authenticated: false, role: "guest", is_admin: false, user_token: "" };
     }
   }
 
-  function setSessionBadge(targetId, authenticated) {
+  function setSessionBadge(targetId, session) {
     var badge = document.getElementById(targetId);
     if (!badge) {
       return;
     }
-    badge.className = "badge panel-badge " + (authenticated ? "text-bg-success" : "text-bg-secondary");
-    badge.textContent = authenticated ? "管理员会话" : "访客模式";
+
+    var role = "guest";
+    if (typeof session === "boolean") {
+      role = session ? "admin" : "guest";
+    } else if (session && typeof session === "object" && typeof session.role === "string") {
+      role = session.role;
+    }
+
+    if (role === "admin") {
+      badge.className = "badge panel-badge text-bg-success";
+      badge.textContent = "管理员会话";
+      return;
+    }
+    if (role === "user") {
+      badge.className = "badge panel-badge text-bg-primary";
+      badge.textContent = "用户会话";
+      return;
+    }
+
+    badge.className = "badge panel-badge text-bg-secondary";
+    badge.textContent = "访客模式";
   }
 
   function formatBytes(bytes) {

@@ -1,5 +1,5 @@
 (function () {
-  var assetVersion = "20260514-key-self-service-v9";
+  var assetVersion = "20260514-session-gate-v10";
   var backgroundCandidates = [
     "/static/backgrounds/panel-scene.avif?v=" + assetVersion,
     "/static/backgrounds/panel-scene.webp?v=" + assetVersion,

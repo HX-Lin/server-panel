@@ -13,6 +13,13 @@ import (
 
 const sessionCookieName = "server_panel_session"
 
+type SessionClaims struct {
+	Subject   string `json:"sub"`
+	UserToken string `json:"user_token,omitempty"`
+	IssuedAt  int64  `json:"iat"`
+	ExpiresAt int64  `json:"exp"`
+}
+
 func GetAdminPassword(auth AuthConfig) (string, error) {
 	value := os.Getenv(auth.AdminPasswordEnv)
 	if value == "" {
@@ -34,18 +41,40 @@ func VerifyPassword(auth AuthConfig, password string) bool {
 }
 
 func MakeSessionCookie(auth AuthConfig) (*http.Cookie, error) {
+	return MakeAdminSessionCookie(auth)
+}
+
+func MakeAdminSessionCookie(auth AuthConfig) (*http.Cookie, error) {
+	now := time.Now().Unix()
+	return makeSessionCookie(auth, SessionClaims{
+		Subject:   "admin",
+		IssuedAt:  now,
+		ExpiresAt: now + int64(auth.SessionTTLSeconds),
+	})
+}
+
+func MakeUserSessionCookie(auth AuthConfig, userToken string) (*http.Cookie, error) {
+	userToken = NormalizeUserToken(userToken)
+	if !IsUserTokenFormatValid(userToken) {
+		return nil, &ConfigError{Message: "invalid user token"}
+	}
+
+	now := time.Now().Unix()
+	return makeSessionCookie(auth, SessionClaims{
+		Subject:   "user",
+		UserToken: userToken,
+		IssuedAt:  now,
+		ExpiresAt: now + int64(auth.SessionTTLSeconds),
+	})
+}
+
+func makeSessionCookie(auth AuthConfig, claims SessionClaims) (*http.Cookie, error) {
 	secret, err := getSessionSecret(auth)
 	if err != nil {
 		return nil, err
 	}
 
-	now := time.Now().Unix()
-	payload := map[string]any{
-		"sub": "admin",
-		"iat": now,
-		"exp": now + int64(auth.SessionTTLSeconds),
-	}
-	body, err := signPayload(payload, secret)
+	body, err := signPayload(claims, secret)
 	if err != nil {
 		return nil, err
 	}
@@ -74,13 +103,18 @@ func ExpiredSessionCookie() *http.Cookie {
 }
 
 func IsAuthenticated(auth AuthConfig, r *http.Request) bool {
+	_, ok := ReadSession(auth, r)
+	return ok
+}
+
+func ReadSession(auth AuthConfig, r *http.Request) (SessionClaims, bool) {
 	cookie, err := r.Cookie(sessionCookieName)
 	if err != nil || cookie.Value == "" {
-		return false
+		return SessionClaims{}, false
 	}
 	secret, err := getSessionSecret(auth)
 	if err != nil {
-		return false
+		return SessionClaims{}, false
 	}
 	return verifyToken(cookie.Value, secret)
 }
@@ -97,7 +131,7 @@ func getSessionSecret(auth AuthConfig) ([]byte, error) {
 	return digest[:], nil
 }
 
-func signPayload(payload map[string]any, secret []byte) (string, error) {
+func signPayload(payload SessionClaims, secret []byte) (string, error) {
 	bodyBytes, err := json.Marshal(payload)
 	if err != nil {
 		return "", err
@@ -108,34 +142,44 @@ func signPayload(payload map[string]any, secret []byte) (string, error) {
 	return body + "." + b64(signature.Sum(nil)), nil
 }
 
-func verifyToken(token string, secret []byte) bool {
+func verifyToken(token string, secret []byte) (SessionClaims, bool) {
 	parts := strings.SplitN(token, ".", 2)
 	if len(parts) != 2 {
-		return false
+		return SessionClaims{}, false
 	}
 
 	expectedMAC := hmac.New(sha256.New, secret)
 	expectedMAC.Write([]byte(parts[0]))
 	expected := b64(expectedMAC.Sum(nil))
 	if !hmac.Equal([]byte(parts[1]), []byte(expected)) {
-		return false
+		return SessionClaims{}, false
 	}
 
 	body, err := unb64(parts[0])
 	if err != nil {
-		return false
+		return SessionClaims{}, false
 	}
 
-	var payload map[string]any
-	if err := json.Unmarshal(body, &payload); err != nil {
-		return false
+	var claims SessionClaims
+	if err := json.Unmarshal(body, &claims); err != nil {
+		return SessionClaims{}, false
 	}
 
-	exp, ok := payload["exp"].(float64)
-	if !ok {
-		return false
+	if claims.ExpiresAt < time.Now().Unix() {
+		return SessionClaims{}, false
 	}
-	return int64(exp) >= time.Now().Unix()
+
+	switch claims.Subject {
+	case "admin":
+		return claims, true
+	case "user":
+		if !IsUserTokenFormatValid(claims.UserToken) {
+			return SessionClaims{}, false
+		}
+		return claims, true
+	default:
+		return SessionClaims{}, false
+	}
 }
 
 func b64(value []byte) string {

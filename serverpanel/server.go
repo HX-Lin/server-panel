@@ -130,6 +130,7 @@ func NewRouter(state *PanelState) *gin.Engine {
 	router.GET("/api/clients/report", state.handleClientReportWebSocket)
 
 	router.POST("/api/login", state.handleLogin)
+	router.POST("/api/login/user", state.handleUserLogin)
 	router.POST("/api/logout", state.handleLogout)
 	router.POST("/api/keys/inspect", state.handleKeyInspect)
 	router.POST("/api/keys/upload", state.handleKeyUpload)
@@ -197,11 +198,27 @@ func (s *PanelState) handlePublicServers(c *gin.Context) {
 }
 
 func (s *PanelState) handleSession(c *gin.Context) {
-	c.JSON(http.StatusOK, gin.H{"authenticated": s.isAuthenticated(c)})
+	claims, ok := s.currentSession(c)
+	if !ok {
+		c.JSON(http.StatusOK, gin.H{
+			"authenticated": false,
+			"role":          "guest",
+			"is_admin":      false,
+			"user_token":    "",
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"authenticated": true,
+		"role":          claims.Subject,
+		"is_admin":      claims.Subject == "admin",
+		"user_token":    claims.UserToken,
+	})
 }
 
 func (s *PanelState) handleSettings(c *gin.Context) {
-	if !s.requireAuth(c) {
+	if !s.requireAdminAuth(c) {
 		return
 	}
 
@@ -225,7 +242,7 @@ func (s *PanelState) handleSettings(c *gin.Context) {
 }
 
 func (s *PanelState) handleServers(c *gin.Context) {
-	if !s.requireAuth(c) {
+	if !s.requireAdminAuth(c) {
 		return
 	}
 	c.JSON(http.StatusOK, s.metricsStore.Snapshot(s.config))
@@ -244,13 +261,39 @@ func (s *PanelState) handleLogin(c *gin.Context) {
 		return
 	}
 
-	cookie, err := MakeSessionCookie(s.config.Auth)
+	cookie, err := MakeAdminSessionCookie(s.config.Auth)
 	if err != nil {
 		panelError(c, http.StatusInternalServerError, err.Error())
 		return
 	}
 	http.SetCookie(c.Writer, cookie)
 	c.JSON(http.StatusOK, gin.H{"ok": true})
+}
+
+func (s *PanelState) handleUserLogin(c *gin.Context) {
+	body, err := readJSONBody(c)
+	if err != nil {
+		panelError(c, http.StatusBadRequest, "invalid JSON")
+		return
+	}
+
+	userToken := NormalizeUserToken(firstNonEmpty(asString(body["user_token"]), asString(body["upload_token"])))
+	if !IsUserTokenFormatValid(userToken) {
+		panelError(c, http.StatusBadRequest, "invalid user token")
+		return
+	}
+
+	cookie, err := MakeUserSessionCookie(s.config.Auth, userToken)
+	if err != nil {
+		panelError(c, http.StatusInternalServerError, err.Error())
+		return
+	}
+	http.SetCookie(c.Writer, cookie)
+	c.JSON(http.StatusOK, gin.H{
+		"ok":         true,
+		"role":       "user",
+		"user_token": userToken,
+	})
 }
 
 func (s *PanelState) handleLogout(c *gin.Context) {
@@ -267,7 +310,7 @@ func (s *PanelState) handleKeyUpload(c *gin.Context) {
 
 	identity := s.resolveUploadIdentity(c, body)
 	if !identity.Allowed {
-		panelError(c, http.StatusUnauthorized, "authentication or upload token required")
+		panelError(c, http.StatusUnauthorized, "login required")
 		return
 	}
 
@@ -289,7 +332,7 @@ func (s *PanelState) handleKeyUpload(c *gin.Context) {
 			return
 		}
 		if ownerToken != identity.UserToken {
-			panelError(c, http.StatusBadRequest, "upload token does not match public key comment owner")
+			panelError(c, http.StatusBadRequest, "user token does not match public key comment owner")
 			return
 		}
 	}
@@ -317,7 +360,7 @@ func (s *PanelState) handleKeyInspect(c *gin.Context) {
 
 	identity := s.resolveUploadIdentity(c, body)
 	if !identity.Allowed {
-		panelError(c, http.StatusUnauthorized, "authentication or upload token required")
+		panelError(c, http.StatusUnauthorized, "login required")
 		return
 	}
 	if identity.UserToken == "" {
@@ -363,7 +406,7 @@ func (s *PanelState) handleKeyDelete(c *gin.Context) {
 
 	identity := s.resolveUploadIdentity(c, body)
 	if !identity.Allowed {
-		panelError(c, http.StatusUnauthorized, "authentication or upload token required")
+		panelError(c, http.StatusUnauthorized, "login required")
 		return
 	}
 	if identity.UserToken == "" && !identity.IsAdmin {
@@ -549,8 +592,17 @@ func (s *PanelState) isAuthenticated(c *gin.Context) bool {
 	return IsAuthenticated(s.config.Auth, c.Request)
 }
 
-func (s *PanelState) requireAuth(c *gin.Context) bool {
-	if s.isAuthenticated(c) {
+func (s *PanelState) currentSession(c *gin.Context) (SessionClaims, bool) {
+	return ReadSession(s.config.Auth, c.Request)
+}
+
+func (s *PanelState) isAdminAuthenticated(c *gin.Context) bool {
+	claims, ok := s.currentSession(c)
+	return ok && claims.Subject == "admin"
+}
+
+func (s *PanelState) requireAdminAuth(c *gin.Context) bool {
+	if s.isAdminAuthenticated(c) {
 		return true
 	}
 	panelError(c, http.StatusUnauthorized, "login required")
@@ -562,42 +614,33 @@ func (s *PanelState) canUploadKey(c *gin.Context, body map[string]any) bool {
 }
 
 func (s *PanelState) resolveUploadIdentity(c *gin.Context, body map[string]any) UploadIdentity {
-	if s.isAuthenticated(c) {
-		rawToken := NormalizeUserToken(asString(body["upload_token"]))
+	claims, ok := s.currentSession(c)
+	if !ok {
+		return UploadIdentity{}
+	}
+
+	switch claims.Subject {
+	case "admin":
+		rawToken := NormalizeUserToken(firstNonEmpty(asString(body["user_token"]), asString(body["upload_token"])))
 		identity := UploadIdentity{
-			Allowed: true,
-			IsAdmin: true,
-			Actor:   "admin",
+			Allowed:   true,
+			IsAdmin:   true,
+			Actor:     "admin",
 		}
 		if IsUserTokenFormatValid(rawToken) {
 			identity.UserToken = rawToken
 			identity.Actor = "admin:" + rawToken
 		}
 		return identity
-	}
-	if !s.config.KeyManagement.AllowPublicUploadWithToken {
-		return UploadIdentity{}
-	}
-
-	expected := GetUploadToken(s.config.Auth)
-	supplied := strings.TrimSpace(asString(body["upload_token"]))
-	if expected != "" && secureEqual(expected, supplied) {
-		return UploadIdentity{
-			Allowed:         true,
-			Actor:           "upload-token",
-			UsesSharedToken: true,
-		}
-	}
-
-	userToken := NormalizeUserToken(supplied)
-	if IsUserTokenFormatValid(userToken) {
+	case "user":
 		return UploadIdentity{
 			Allowed:   true,
-			Actor:     "user:" + userToken,
-			UserToken: userToken,
+			Actor:     "user:" + claims.UserToken,
+			UserToken: claims.UserToken,
 		}
+	default:
+		return UploadIdentity{}
 	}
-	return UploadIdentity{}
 }
 
 func readJSONBody(c *gin.Context) (map[string]any, error) {

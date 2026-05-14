@@ -15,11 +15,11 @@ document.addEventListener("DOMContentLoaded", () => {
 
 async function bootstrapAdmin() {
   const session = await ServerPanelShared.fetchSession();
-  if (!session.authenticated) {
+  if (!session.authenticated || session.role !== "admin") {
     window.location.replace("/");
     return;
   }
-  ServerPanelShared.setSessionBadge("adminSessionBadge", true);
+  ServerPanelShared.setSessionBadge("adminSessionBadge", session);
   await refreshAdmin(false);
 }
 
@@ -45,7 +45,7 @@ async function refreshAdmin(showToast) {
     }
   } catch (error) {
     const session = await ServerPanelShared.fetchSession();
-    if (!session.authenticated) {
+    if (!session.authenticated || session.role !== "admin") {
       window.location.replace("/");
       return;
     }
@@ -152,7 +152,7 @@ function renderAdminKeyResult(result) {
   empty.classList.add("d-none");
   list.classList.remove("d-none");
   list.innerHTML = targets.map((target) => {
-    const statusClass = target.status === "added"
+    const statusClass = target.status === "added" || target.status === "deleted"
       ? "status-online"
       : (target.status === "exists" || target.status === "planned" ? "status-planned" : "status-offline");
 

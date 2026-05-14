@@ -1,75 +1,141 @@
 const mainState = {
   authenticated: false,
+  sessionRole: "guest",
+  isAdmin: false,
+  userToken: "",
   refreshSeconds: 15,
   refreshTimer: null,
   refreshInFlight: false,
   ownedKeysTimer: null,
   ownedKeysBusy: false,
-  lastOwnedKeyToken: "",
 };
 
 document.addEventListener("DOMContentLoaded", () => {
   ServerPanelShared.initTheme();
   document.getElementById("refreshBtn").addEventListener("click", () => refreshHome(true));
   document.getElementById("publicKeyForm").addEventListener("submit", submitPublicKey);
-  document.getElementById("uploadTokenInput").addEventListener("input", queueOwnedKeysRefresh);
   document.getElementById("publicKeyInput").addEventListener("input", queueOwnedKeysRefresh);
   document.getElementById("ownedKeysRefreshBtn").addEventListener("click", () => refreshOwnedKeys(true));
   document.getElementById("ownedKeysList").addEventListener("click", handleOwnedKeysAction);
+  document.getElementById("userAuthButton").addEventListener("click", toggleUserLoginPopover);
+  document.getElementById("userLoginForm").addEventListener("submit", submitUserLogin);
+  document.getElementById("userLoginClose").addEventListener("click", closeUserLoginPopover);
   document.getElementById("adminAuthButton").addEventListener("click", handleAdminEntryClick);
   document.getElementById("adminLoginForm").addEventListener("submit", submitAdminLogin);
   document.getElementById("adminLoginClose").addEventListener("click", closeAdminLoginPopover);
+  document.getElementById("sessionLogoutButton").addEventListener("click", logoutSession);
   document.addEventListener("click", handleDocumentClick);
   document.addEventListener("keydown", handleDocumentKeydown);
   bootstrapHome();
 });
 
 async function bootstrapHome() {
-  const session = await ServerPanelShared.fetchSession();
-  mainState.authenticated = Boolean(session.authenticated);
+  applySession(await ServerPanelShared.fetchSession());
   renderSessionState();
   await refreshHome(false);
 }
 
+function applySession(session) {
+  mainState.authenticated = Boolean(session && session.authenticated);
+  mainState.sessionRole = session && typeof session.role === "string" ? session.role : "guest";
+  mainState.isAdmin = mainState.sessionRole === "admin";
+  mainState.userToken = session && typeof session.user_token === "string" ? session.user_token : "";
+}
+
 function renderSessionState() {
-  ServerPanelShared.setSessionBadge("sessionBadge", mainState.authenticated);
+  ServerPanelShared.setSessionBadge("sessionBadge", {
+    role: mainState.sessionRole,
+  });
 
+  const keySection = document.getElementById("keyManagementSection");
+  const userButton = document.getElementById("userAuthButton");
   const adminButton = document.getElementById("adminAuthButton");
-  const uploadTokenGroup = document.getElementById("uploadTokenGroup");
+  const logoutButton = document.getElementById("sessionLogoutButton");
   const uploadModeBadge = document.getElementById("uploadModeBadge");
+  const uploadTokenDisplay = document.getElementById("uploadTokenDisplay");
+  const publicKeyInput = document.getElementById("publicKeyInput");
 
-  adminButton.textContent = mainState.authenticated ? "进入后台" : "管理员登录";
+  closeUserLoginPopover();
+  closeAdminLoginPopover();
 
-  uploadTokenGroup.hidden = mainState.authenticated;
-  const tokenInput = document.getElementById("uploadTokenInput");
-  if (mainState.authenticated) {
-    closeAdminLoginPopover();
-    tokenInput.removeAttribute("required");
-    tokenInput.value = "";
+  keySection.classList.toggle("d-none", mainState.sessionRole !== "user");
+  logoutButton.classList.toggle("d-none", !mainState.authenticated);
+
+  if (mainState.sessionRole === "admin") {
+    userButton.classList.add("d-none");
+    adminButton.textContent = "进入后台";
     uploadModeBadge.className = "badge text-bg-success panel-badge";
-    uploadModeBadge.textContent = "管理员直传";
-    resetOwnedKeysState("管理员模式下默认不按用户 token 查询。退出管理员会话后可继续自助查看。");
-  } else {
-    tokenInput.setAttribute("required", "required");
-    uploadModeBadge.className = "badge text-bg-warning panel-badge";
-    uploadModeBadge.textContent = "用户自助";
-    queueOwnedKeysRefresh();
+    uploadModeBadge.textContent = "管理员会话";
+    uploadTokenDisplay.value = "";
+    publicKeyInput.value = "";
+    resetOwnedKeysState("管理员请进入后台管理 SSH Key。");
+    return;
   }
+
+  adminButton.textContent = "管理员登录";
+
+  if (mainState.sessionRole === "user") {
+    userButton.classList.add("d-none");
+    uploadModeBadge.className = "badge text-bg-primary panel-badge";
+    uploadModeBadge.textContent = "用户已登录";
+    uploadTokenDisplay.value = mainState.userToken || "-";
+    resetOwnedKeysState("正在读取当前用户已经登记的 SSH Key。");
+    queueOwnedKeysRefresh();
+    return;
+  }
+
+  userButton.classList.remove("d-none");
+  uploadModeBadge.className = "badge text-bg-secondary panel-badge";
+  uploadModeBadge.textContent = "需先登录";
+  uploadTokenDisplay.value = "";
+  publicKeyInput.value = "";
+  resetOwnedKeysState("普通用户先登录，登录后才能查看、提交和删除 SSH Key。");
 }
 
 function handleAdminEntryClick() {
-  if (mainState.authenticated) {
+  if (mainState.isAdmin) {
     window.location.assign("/admin.html");
     return;
   }
   toggleAdminLoginPopover();
 }
 
+function toggleUserLoginPopover() {
+  if (mainState.authenticated) {
+    return;
+  }
+
+  const popover = document.getElementById("userLoginPopover");
+  const tokenInput = document.getElementById("userLoginToken");
+  const shouldOpen = popover.classList.contains("d-none");
+
+  closeAdminLoginPopover();
+  popover.classList.toggle("d-none", !shouldOpen);
+  popover.setAttribute("aria-hidden", shouldOpen ? "false" : "true");
+
+  if (shouldOpen) {
+    window.setTimeout(() => tokenInput.focus(), 0);
+  }
+}
+
+function closeUserLoginPopover() {
+  const popover = document.getElementById("userLoginPopover");
+  const form = document.getElementById("userLoginForm");
+  popover.classList.add("d-none");
+  popover.setAttribute("aria-hidden", "true");
+  form.reset();
+}
+
 function toggleAdminLoginPopover() {
+  if (mainState.isAdmin) {
+    return;
+  }
+
   const popover = document.getElementById("adminLoginPopover");
   const passwordInput = document.getElementById("adminLoginPassword");
   const shouldOpen = popover.classList.contains("d-none");
 
+  closeUserLoginPopover();
   popover.classList.toggle("d-none", !shouldOpen);
   popover.setAttribute("aria-hidden", shouldOpen ? "false" : "true");
 
@@ -87,19 +153,49 @@ function closeAdminLoginPopover() {
 }
 
 function handleDocumentClick(event) {
-  const anchor = document.querySelector(".admin-login-anchor");
-  const popover = document.getElementById("adminLoginPopover");
-  if (!anchor || popover.classList.contains("d-none")) {
-    return;
+  const userAnchor = document.querySelector(".user-login-anchor");
+  const userPopover = document.getElementById("userLoginPopover");
+  if (userAnchor && !userPopover.classList.contains("d-none") && !userAnchor.contains(event.target)) {
+    closeUserLoginPopover();
   }
-  if (!anchor.contains(event.target)) {
+
+  const adminAnchor = document.querySelector(".admin-login-anchor");
+  const adminPopover = document.getElementById("adminLoginPopover");
+  if (adminAnchor && !adminPopover.classList.contains("d-none") && !adminAnchor.contains(event.target)) {
     closeAdminLoginPopover();
   }
 }
 
 function handleDocumentKeydown(event) {
   if (event.key === "Escape") {
+    closeUserLoginPopover();
     closeAdminLoginPopover();
+  }
+}
+
+async function submitUserLogin(event) {
+  event.preventDefault();
+  const tokenInput = document.getElementById("userLoginToken");
+  const userToken = normalizeUserToken(tokenInput.value);
+
+  if (!isValidUserToken(userToken)) {
+    ServerPanelShared.showToast("danger", "登录失败", "用户 token 需要使用姓名全拼小写，例如 hanxiaolin。");
+    tokenInput.select();
+    return;
+  }
+
+  try {
+    await ServerPanelShared.api("/api/login/user", {
+      method: "POST",
+      body: { user_token: userToken },
+    });
+    applySession(await ServerPanelShared.fetchSession());
+    renderSessionState();
+    await refreshOwnedKeys(false);
+    ServerPanelShared.showToast("success", "登录成功", "现在可以管理你自己的 SSH Key 了。");
+  } catch (error) {
+    ServerPanelShared.showToast("danger", "登录失败", error.message || "无法建立用户会话。");
+    tokenInput.select();
   }
 }
 
@@ -113,7 +209,7 @@ async function submitAdminLogin(event) {
       method: "POST",
       body: { password: password },
     });
-    mainState.authenticated = true;
+    applySession(await ServerPanelShared.fetchSession());
     renderSessionState();
     ServerPanelShared.showToast("success", "登录成功", "正在进入管理后台。");
     window.setTimeout(() => {
@@ -125,6 +221,19 @@ async function submitAdminLogin(event) {
   }
 }
 
+async function logoutSession() {
+  try {
+    await ServerPanelShared.api("/api/logout", { method: "POST" });
+  } catch (error) {
+    // Ignore logout errors and continue resetting local state.
+  }
+
+  applySession({ authenticated: false, role: "guest", is_admin: false, user_token: "" });
+  renderSessionState();
+  renderKeyResult({ fingerprint: "无", targets: [] });
+  await refreshHome(false);
+}
+
 async function refreshHome(showToast) {
   if (mainState.refreshInFlight) {
     return;
@@ -132,9 +241,9 @@ async function refreshHome(showToast) {
   mainState.refreshInFlight = true;
 
   try {
-    const endpoint = mainState.authenticated ? "/api/servers" : "/api/public/servers";
+    const endpoint = mainState.isAdmin ? "/api/servers" : "/api/public/servers";
     const requests = [ServerPanelShared.api(endpoint)];
-    if (mainState.authenticated) {
+    if (mainState.isAdmin) {
       requests.push(ServerPanelShared.api("/api/settings"));
     }
 
@@ -146,10 +255,10 @@ async function refreshHome(showToast) {
       ServerPanelShared.showToast("success", "刷新完成", "监控数据已更新。");
     }
   } catch (error) {
-    if (mainState.authenticated) {
+    if (mainState.isAdmin) {
       const session = await ServerPanelShared.fetchSession();
-      if (!session.authenticated) {
-        mainState.authenticated = false;
+      if (!session.authenticated || session.role !== "admin") {
+        applySession(session);
         renderSessionState();
         window.setTimeout(() => refreshHome(false), 0);
         return;
@@ -181,54 +290,60 @@ function renderHomeMonitor(payload, settings) {
     : "等待刷新";
 
   const modeBadge = document.getElementById("monitorModeBadge");
-  if (mainState.authenticated) {
+  if (mainState.isAdmin) {
     modeBadge.className = "badge text-bg-success panel-badge";
     modeBadge.textContent = settings && settings.key_management_dry_run ? "管理员视图 / dry_run" : "管理员视图";
+  } else if (mainState.sessionRole === "user") {
+    modeBadge.className = "badge text-bg-primary panel-badge";
+    modeBadge.textContent = "用户视图";
   } else {
     modeBadge.className = "badge text-bg-secondary panel-badge";
     modeBadge.textContent = "访客只读";
   }
 
   const notice = document.getElementById("monitorNotice");
-  if (!mainState.authenticated) {
-    notice.className = "alert alert-primary subtle-alert mb-4";
-    notice.textContent = "当前为访客只读视图。管理员登录后可查看完整节点来源并进入 SSH Key 分发后台。";
-  } else if (settings && settings.key_management_dry_run) {
+  if (mainState.isAdmin && settings && settings.key_management_dry_run) {
     notice.className = "alert alert-warning subtle-alert mb-4";
     notice.textContent = "当前 key management 处于 dry_run 模式，上传的 SSH key 只会走流程，不会写入 authorized_keys。";
+  } else if (mainState.isAdmin) {
+    notice.className = "alert alert-success subtle-alert mb-4";
+    notice.textContent = "当前为管理员视图，完整节点来源和后台能力已开放。";
+  } else if (mainState.sessionRole === "user") {
+    notice.className = "alert alert-primary subtle-alert mb-4";
+    notice.textContent = "当前为用户视图。服务器监控保持只读，SSH Key 管理已在下方开放给当前登录用户。";
   } else {
-    notice.className = "alert subtle-alert d-none mb-4";
-    notice.textContent = "";
+    notice.className = "alert alert-primary subtle-alert mb-4";
+    notice.textContent = "当前为访客只读视图。登录后才能查看和管理 SSH Key。";
   }
 
   document.getElementById("serverCardGrid").innerHTML = ServerPanelShared.buildServerCards(servers, {
-    publicView: !mainState.authenticated,
+    publicView: !mainState.isAdmin,
     prefix: "home",
   });
   ServerPanelShared.bindExpandableRows(document);
   ServerPanelShared.renderMobileCards("mobileServerContainer", servers, {
-    publicView: !mainState.authenticated,
+    publicView: !mainState.isAdmin,
   });
 }
 
 async function submitPublicKey(event) {
   event.preventDefault();
+  if (mainState.sessionRole !== "user") {
+    ServerPanelShared.showToast("danger", "提交失败", "请先登录用户会话。");
+    return;
+  }
+
   const form = event.currentTarget;
   const publicKey = document.getElementById("publicKeyInput").value.trim();
-  const uploadToken = document.getElementById("uploadTokenInput").value.trim();
 
   try {
-    const body = { public_key: publicKey };
-    if (!mainState.authenticated) {
-      body.upload_token = normalizeUserToken(uploadToken);
-    }
     const result = await ServerPanelShared.api("/api/keys/upload", {
       method: "POST",
-      body: body,
+      body: { public_key: publicKey },
     });
     form.reset();
-    renderKeyResult(result);
     renderSessionState();
+    renderKeyResult(result);
     await refreshOwnedKeys(false);
     ServerPanelShared.showToast(
       result.dry_run ? "warning" : "success",
@@ -241,41 +356,25 @@ async function submitPublicKey(event) {
 }
 
 function queueOwnedKeysRefresh() {
-  if (mainState.authenticated) {
+  if (mainState.sessionRole !== "user") {
     return;
   }
   window.clearTimeout(mainState.ownedKeysTimer);
   mainState.ownedKeysTimer = window.setTimeout(() => {
     refreshOwnedKeys(false);
-  }, 320);
+  }, 220);
 }
 
 async function refreshOwnedKeys(showToast) {
-  if (mainState.authenticated || mainState.ownedKeysBusy) {
+  if (mainState.sessionRole !== "user" || mainState.ownedKeysBusy) {
     return;
   }
 
-  const uploadToken = document.getElementById("uploadTokenInput").value.trim();
   const publicKey = document.getElementById("publicKeyInput").value.trim();
-  const normalizedToken = normalizeUserToken(uploadToken);
-
-  if (!normalizedToken) {
-    mainState.lastOwnedKeyToken = "";
-    resetOwnedKeysState("先输入你的用户 token，系统才知道该查谁的 key。");
-    return;
-  }
-
-  if (!isValidUserToken(normalizedToken)) {
-    mainState.lastOwnedKeyToken = "";
-    resetOwnedKeysState("用户 token 需要使用姓名全拼小写字母，例如 hanxiaolin。");
-    return;
-  }
-
   mainState.ownedKeysBusy = true;
+
   try {
-    const payload = {
-      upload_token: normalizedToken,
-    };
+    const payload = {};
     if (looksLikePublicKey(publicKey)) {
       payload.public_key = publicKey;
     }
@@ -284,7 +383,6 @@ async function refreshOwnedKeys(showToast) {
       method: "POST",
       body: payload,
     });
-    mainState.lastOwnedKeyToken = normalizedToken;
     renderOwnedKeys(result);
 
     if (showToast) {
@@ -328,7 +426,7 @@ function renderOwnedKeys(result) {
     hint.textContent = "这些就是当前属于你的 key。看着不用的旧 key，直接删，别在服务器里攒电子化石。";
   } else {
     hint.className = "alert alert-info subtle-alert mb-3";
-    hint.textContent = "当前还没有识别到属于这个用户 token 的 SSH key。";
+    hint.textContent = "当前还没有识别到属于这个用户的 SSH key。";
   }
 
   if (!keys.length) {
@@ -375,15 +473,14 @@ function renderOwnedKeys(result) {
 
 async function handleOwnedKeysAction(event) {
   const button = event.target.closest("[data-delete-fingerprint]");
-  if (!button) {
+  if (!button || mainState.sessionRole !== "user") {
     return;
   }
 
   const fingerprint = button.getAttribute("data-delete-fingerprint") || "";
   const comment = button.getAttribute("data-delete-comment") || "这把 key";
-  const uploadToken = normalizeUserToken(document.getElementById("uploadTokenInput").value.trim());
 
-  if (!fingerprint || !uploadToken) {
+  if (!fingerprint) {
     return;
   }
 
@@ -396,7 +493,6 @@ async function handleOwnedKeysAction(event) {
     const result = await ServerPanelShared.api("/api/keys/delete", {
       method: "POST",
       body: {
-        upload_token: uploadToken,
         fingerprint: fingerprint,
       },
     });

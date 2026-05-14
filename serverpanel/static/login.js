@@ -6,8 +6,12 @@ document.addEventListener("DOMContentLoaded", () => {
 
 async function bootstrapLogin() {
   const session = await ServerPanelShared.fetchSession();
-  if (session.authenticated) {
+  if (session.authenticated && session.role === "admin") {
     window.location.replace("/admin.html");
+    return;
+  }
+  if (session.authenticated && session.role === "user") {
+    window.location.replace("/");
   }
 }
 
