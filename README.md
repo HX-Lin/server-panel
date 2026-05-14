@@ -208,9 +208,10 @@ http://10.10.0.1:8787
 首页现在支持普通用户自助管理自己的 key，规则别写飞了：
 
 1. 普通用户 token 使用“姓名全拼小写”，例如 `hanxiaolin`。
-2. public key comment 需要带 owner 前缀，例如 `hanxiaolin-2024-key1`。
-3. 首页访客只看服务器状态；用户登录后，页面会自动读取当前用户已经存在的 key，并允许删除旧 key。
-4. `SERVER_PANEL_KEY_UPLOAD_TOKEN` 仍保留在配置里兼容旧版本部署，但当前页面主流程已经不依赖它。
+2. public key comment 的 owner 前缀优先推荐直接写 token，例如 `hanxiaolin-2024-key1`。
+3. 如果你们历史 key 注释已经是中文姓名，例如 `韩晓林-2024-key1`，就在 `key_management.user_aliases` 里配映射，例如 `"hanxiaolin": ["韩晓林"]`。
+4. 首页访客只看服务器状态；用户登录后，页面会自动读取当前用户已经存在的 key，并允许删除旧 key。
+5. `SERVER_PANEL_KEY_UPLOAD_TOKEN` 仍保留在配置里兼容旧版本部署，但当前页面主流程已经不依赖它。
 
 如果实验室里还有老旧客户端必须用 RSA，可以把 `allow_ssh_rsa` 改成 `true`。正常情况建议统一 `ssh-ed25519`，别抱着陈年老 key 不撒手。
 

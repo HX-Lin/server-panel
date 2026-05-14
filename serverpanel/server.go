@@ -326,9 +326,9 @@ func (s *PanelState) handleKeyUpload(c *gin.Context) {
 	}
 
 	if identity.UserToken != "" && !identity.IsAdmin {
-		ownerToken := ExtractCommentOwnerToken(publicKey.Comment)
+		ownerToken := ExtractCommentOwnerToken(publicKey.Comment, s.config.KeyManagement.UserAliases)
 		if ownerToken == "" {
-			panelError(c, http.StatusBadRequest, "public key comment must use owner-grade-keyN format, for example hanxiaolin-2024-key1")
+			panelError(c, http.StatusBadRequest, "public key comment owner is not recognized; use token prefix like hanxiaolin-2024-key1, or configure a Chinese-name alias")
 			return
 		}
 		if ownerToken != identity.UserToken {

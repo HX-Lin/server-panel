@@ -33,6 +33,10 @@
       "sk-ecdsa-sha2-nistp256@openssh.com"
     ],
     "allow_ssh_rsa": false,
+    "user_aliases": {
+      "hanxiaolin": ["韩晓林"],
+      "lilei": ["李雷"]
+    },
     "targets": [
       {
         "id": "bastion",

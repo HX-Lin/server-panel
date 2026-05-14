@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"sort"
 	"strings"
+	"unicode"
 )
 
 type AuthorizedKeyEntry struct {
@@ -32,6 +33,30 @@ func NormalizeUserToken(raw string) string {
 	return builder.String()
 }
 
+func normalizeOwnerLabel(raw string) string {
+	raw = strings.TrimSpace(raw)
+	if raw == "" {
+		return ""
+	}
+
+	if token := NormalizeUserToken(raw); token != "" && len(token) == len([]rune(strings.TrimSpace(raw))) {
+		return token
+	}
+
+	var builder strings.Builder
+	for _, r := range raw {
+		if unicode.IsSpace(r) {
+			continue
+		}
+		if r >= 'A' && r <= 'Z' {
+			builder.WriteRune(unicode.ToLower(r))
+			continue
+		}
+		builder.WriteRune(r)
+	}
+	return strings.TrimSpace(builder.String())
+}
+
 func IsUserTokenFormatValid(token string) bool {
 	if len(token) < 2 || len(token) > 64 {
 		return false
@@ -44,7 +69,7 @@ func IsUserTokenFormatValid(token string) bool {
 	return true
 }
 
-func ExtractCommentOwnerToken(comment string) string {
+func ExtractCommentOwnerLabel(comment string) string {
 	comment = strings.TrimSpace(comment)
 	if comment == "" {
 		return ""
@@ -52,18 +77,44 @@ func ExtractCommentOwnerToken(comment string) string {
 
 	var builder strings.Builder
 	for _, r := range comment {
-		if (r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z') {
-			builder.WriteRune(r)
-			continue
-		}
-		if r == '-' || r == '_' || r == ' ' || r == '\t' {
+		if isOwnerLabelSeparator(r) {
 			break
 		}
-		if builder.Len() > 0 {
-			break
+		builder.WriteRune(r)
+	}
+	return normalizeOwnerLabel(builder.String())
+}
+
+func ExtractCommentOwnerToken(comment string, userAliases map[string][]string) string {
+	label := ExtractCommentOwnerLabel(comment)
+	if label == "" {
+		return ""
+	}
+
+	if IsUserTokenFormatValid(label) {
+		return label
+	}
+
+	for token, aliases := range userAliases {
+		if label == token {
+			return token
+		}
+		for _, alias := range aliases {
+			if label == normalizeOwnerLabel(alias) {
+				return token
+			}
 		}
 	}
-	return NormalizeUserToken(builder.String())
+	return ""
+}
+
+func isOwnerLabelSeparator(r rune) bool {
+	switch r {
+	case '-', '_', '|', ' ', '\t', '/', ':', '：', '—', '－':
+		return true
+	default:
+		return false
+	}
 }
 
 func InspectAuthorizedKeys(config *AppConfig, runner *SSHRunner, userToken string, submitted *PublicKey) (map[string]any, error) {
@@ -295,7 +346,13 @@ func collectAuthorizedKeys(config *AppConfig, runner *SSHRunner) []authorizedKey
 			continue
 		}
 
-		entries := parseAuthorizedKeys(runResult.Stdout, target, config.KeyManagement.AllowedKeyTypes, config.KeyManagement.AllowSSHRSA)
+		entries := parseAuthorizedKeys(
+			runResult.Stdout,
+			target,
+			config.KeyManagement.AllowedKeyTypes,
+			config.KeyManagement.AllowSSHRSA,
+			config.KeyManagement.UserAliases,
+		)
 		scan["status"] = "ok"
 		scan["message"] = fmt.Sprintf("scanned %d managed key(s)", len(entries))
 		results = append(results, authorizedKeysSnapshot{
@@ -307,7 +364,7 @@ func collectAuthorizedKeys(config *AppConfig, runner *SSHRunner) []authorizedKey
 	return results
 }
 
-func parseAuthorizedKeys(content string, target KeyTarget, allowedTypes []string, allowSSHRSA bool) []AuthorizedKeyEntry {
+func parseAuthorizedKeys(content string, target KeyTarget, allowedTypes []string, allowSSHRSA bool, userAliases map[string][]string) []AuthorizedKeyEntry {
 	scanner := bufio.NewScanner(strings.NewReader(content))
 	buffer := make([]byte, 0, 64*1024)
 	scanner.Buffer(buffer, 1024*1024)
@@ -325,7 +382,7 @@ func parseAuthorizedKeys(content string, target KeyTarget, allowedTypes []string
 		entries = append(entries, AuthorizedKeyEntry{
 			PublicKey:   publicKey,
 			RawLine:     line,
-			OwnerToken:  ExtractCommentOwnerToken(publicKey.Comment),
+			OwnerToken:  ExtractCommentOwnerToken(publicKey.Comment, userAliases),
 			TargetID:    target.ID,
 			TargetName:  target.Name,
 			TargetFound: true,

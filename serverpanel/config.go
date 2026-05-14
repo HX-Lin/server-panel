@@ -69,6 +69,7 @@ type KeyManagementConfig struct {
 	AllowPublicUploadWithToken bool
 	AllowedKeyTypes            []string
 	AllowSSHRSA                bool
+	UserAliases                map[string][]string
 	Targets                    []KeyTarget
 }
 
@@ -139,6 +140,7 @@ func LoadConfig(path string) (*AppConfig, error) {
 			AllowPublicUploadWithToken: boolValue(keyRaw["allow_public_upload_with_token"], true),
 			AllowedKeyTypes:            toStringSlice(keyRaw["allowed_key_types"]),
 			AllowSSHRSA:                boolValue(keyRaw["allow_ssh_rsa"], false),
+			UserAliases:                parseUserAliases(keyRaw["user_aliases"]),
 			Targets:                    parseKeyTargets(keyRaw["targets"]),
 		},
 		Servers:    parseServers(raw["servers"]),
@@ -218,6 +220,45 @@ func parseKeyTargets(value any) []KeyTarget {
 		})
 	}
 	return targets
+}
+
+func parseUserAliases(value any) map[string][]string {
+	raw := asMap(value)
+	result := map[string][]string{}
+	for key, item := range raw {
+		token := NormalizeUserToken(key)
+		if !IsUserTokenFormatValid(token) {
+			continue
+		}
+
+		aliases := []string{}
+		switch typed := item.(type) {
+		case string:
+			if alias := normalizeOwnerLabel(typed); alias != "" {
+				aliases = append(aliases, alias)
+			}
+		case []any:
+			for _, child := range typed {
+				if alias := normalizeOwnerLabel(asString(child)); alias != "" {
+					aliases = append(aliases, alias)
+				}
+			}
+		}
+
+		deduped := make([]string, 0, len(aliases)+1)
+		seen := map[string]struct{}{}
+		seen[token] = struct{}{}
+		deduped = append(deduped, token)
+		for _, alias := range aliases {
+			if _, ok := seen[alias]; ok {
+				continue
+			}
+			seen[alias] = struct{}{}
+			deduped = append(deduped, alias)
+		}
+		result[token] = deduped
+	}
+	return result
 }
 
 func asMap(value any) map[string]any {
